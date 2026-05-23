@@ -1,0 +1,173 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 490" width="800" height="490">
+<defs>
+<style>
+.t{font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace}
+.p{fill:#58a6ff}
+.c{fill:#e6edf3}
+.o{fill:#8b949e}
+.g{fill:#3fb950}
+.b{fill:#79c0ff}
+.dim{fill:#6e7681}
+
+@keyframes l01{0%,4.3%{opacity:0}4.4%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l02{0%,9.9%{opacity:0}10%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l03{0%,12.1%{opacity:0}12.2%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l04{0%,13.8%{opacity:0}13.9%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l05{0%,15.5%{opacity:0}15.6%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l06{0%,17.1%{opacity:0}17.2%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l07{0%,18.8%{opacity:0}18.9%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l08{0%,22.1%{opacity:0}22.2%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l09{0%,24.3%{opacity:0}24.4%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l10{0%,30.5%{opacity:0}30.6%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l11{0%,36%{opacity:0}36.1%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l12{0%,41.6%{opacity:0}41.7%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l13{0%,47.1%{opacity:0}47.2%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l14{0%,52.7%{opacity:0}52.8%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l15{0%,56.6%{opacity:0}56.7%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l16{0%,58.8%{opacity:0}58.9%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l17{0%,61%{opacity:0}61.1%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l18{0%,63.2%{opacity:0}63.3%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes l19{0%,66.6%{opacity:0}66.7%,77%{opacity:1}88%,100%{opacity:0}}
+@keyframes blink{0%,49%{opacity:1}50%,99%{opacity:0}100%{opacity:1}}
+
+.l01{opacity:0;animation:l01 18s linear infinite}
+.l02{opacity:0;animation:l02 18s linear infinite}
+.l03{opacity:0;animation:l03 18s linear infinite}
+.l04{opacity:0;animation:l04 18s linear infinite}
+.l05{opacity:0;animation:l05 18s linear infinite}
+.l06{opacity:0;animation:l06 18s linear infinite}
+.l07{opacity:0;animation:l07 18s linear infinite}
+.l08{opacity:0;animation:l08 18s linear infinite}
+.l09{opacity:0;animation:l09 18s linear infinite}
+.l10{opacity:0;animation:l10 18s linear infinite}
+.l11{opacity:0;animation:l11 18s linear infinite}
+.l12{opacity:0;animation:l12 18s linear infinite}
+.l13{opacity:0;animation:l13 18s linear infinite}
+.l14{opacity:0;animation:l14 18s linear infinite}
+.l15{opacity:0;animation:l15 18s linear infinite}
+.l16{opacity:0;animation:l16 18s linear infinite}
+.l17{opacity:0;animation:l17 18s linear infinite}
+.l18{opacity:0;animation:l18 18s linear infinite}
+.l19{opacity:0;animation:l19 18s linear infinite}
+.cur{animation:blink 0.9s linear infinite}
+</style>
+</defs>
+
+<!-- Terminal background -->
+<rect width="800" height="490" rx="8" fill="#0d1117"/>
+<!-- Border -->
+<rect width="800" height="490" rx="8" fill="none" stroke="#30363d" stroke-width="1"/>
+
+<!-- Title bar -->
+<rect width="800" height="34" rx="8" fill="#161b22"/>
+<rect y="24" width="800" height="10" fill="#161b22"/>
+
+<!-- Traffic lights -->
+<circle cx="20" cy="17" r="6" fill="#ff5f57"/>
+<circle cx="40" cy="17" r="6" fill="#febc2e"/>
+<circle cx="60" cy="17" r="6" fill="#28c840"/>
+
+<!-- Window title -->
+<text x="400" y="22" class="t dim" text-anchor="middle" font-size="12" font-weight="500">gomyadmin — zsh</text>
+
+<!-- ──────────────── CONTENT  (font-size 13, lh 19) ──────────────── -->
+
+<!-- 1. $ gomyadmin init crm-admin  t=0.8s 4.4% -->
+<text y="62" class="t l01" font-size="13">
+  <tspan x="20" class="p">$</tspan><tspan class="c"> gomyadmin init crm-admin</tspan>
+</text>
+
+<!-- 2. Creating...  t=1.8s 10% -->
+<text y="81" class="t l02" font-size="13">
+  <tspan x="20" class="o">  Creating </tspan><tspan class="b">crm-admin/</tspan>
+</text>
+
+<!-- 3. ✓ docker-compose.yml  t=2.2s 12.2% -->
+<text y="100" class="t l03" font-size="13">
+  <tspan x="20" class="g">  ✓ </tspan><tspan class="b">docker-compose.yml</tspan>
+</text>
+
+<!-- 4. ✓ backend/go.mod  t=2.5s 13.9% -->
+<text y="119" class="t l04" font-size="13">
+  <tspan x="20" class="g">  ✓ </tspan><tspan class="b">backend/go.mod</tspan>
+</text>
+
+<!-- 5. ✓ backend/cmd/server/main.go  t=2.8s 15.6% -->
+<text y="138" class="t l05" font-size="13">
+  <tspan x="20" class="g">  ✓ </tspan><tspan class="b">backend/cmd/server/main.go</tspan>
+</text>
+
+<!-- 6. ✓ backend/internal/admin/resources.go  t=3.1s 17.2% -->
+<text y="157" class="t l06" font-size="13">
+  <tspan x="20" class="g">  ✓ </tspan><tspan class="b">backend/internal/admin/resources.go</tspan>
+</text>
+
+<!-- 7. ✓ frontend/package.json  t=3.4s 18.9% -->
+<text y="176" class="t l07" font-size="13">
+  <tspan x="20" class="g">  ✓ </tspan><tspan class="b">frontend/package.json</tspan>
+</text>
+
+<!-- 8. Next steps:  t=4.0s 22.2% (blank line gap before) -->
+<text y="214" class="t l08" font-size="13">
+  <tspan x="20" class="o">  Next steps:</tspan>
+</text>
+
+<!-- 9. cd crm-admin...  t=4.4s 24.4% -->
+<text y="233" class="t l09" font-size="13">
+  <tspan x="20" class="c">    cd crm-admin </tspan><tspan class="dim">&amp;&amp;</tspan><tspan class="c"> docker compose up --build</tspan>
+</text>
+
+<!-- 10. $ gomyadmin introspect  t=5.5s 30.6% (blank line gap before) -->
+<text y="271" class="t l10" font-size="13">
+  <tspan x="20" class="p">$</tspan><tspan class="c"> gomyadmin introspect --database-url </tspan><tspan class="b">"$DATABASE_URL"</tspan>
+</text>
+
+<!-- 11. 6 tables  t=6.5s 36.1% -->
+<text y="290" class="t l11" font-size="13">
+  <tspan x="20" class="g">  6 tables</tspan><tspan class="o">: users, customers, deals, invoices, payments, files</tspan>
+</text>
+
+<!-- 12. $ gomyadmin generate  t=7.5s 41.7% (blank line gap before) -->
+<text y="328" class="t l12" font-size="13">
+  <tspan x="20" class="p">$</tspan><tspan class="c"> gomyadmin generate resource Customer --table customers</tspan>
+</text>
+
+<!-- 13. Generated resource file  t=8.5s 47.2% -->
+<text y="347" class="t l13" font-size="13">
+  <tspan x="20" class="g">  Generated </tspan><tspan class="b">backend/internal/admin/customer_resource.go</tspan>
+</text>
+
+<!-- 14. $ gomyadmin doctor  t=9.5s 52.8% (blank line gap before) -->
+<text y="385" class="t l14" font-size="13">
+  <tspan x="20" class="p">$</tspan><tspan class="c"> gomyadmin doctor</tspan>
+</text>
+
+<!-- 15. [ok] Go  t=10.2s 56.7% -->
+<text y="404" class="t l15" font-size="13">
+  <tspan x="20" class="g">  [ok] </tspan><tspan class="o">Go: go1.23.0</tspan>
+</text>
+
+<!-- 16. [ok] Node.js  t=10.6s 58.9% -->
+<text y="423" class="t l16" font-size="13">
+  <tspan x="20" class="g">  [ok] </tspan><tspan class="o">Node.js: v22.4.0</tspan>
+</text>
+
+<!-- 17. [ok] DATABASE_URL  t=11.0s 61.1% -->
+<text y="442" class="t l17" font-size="13">
+  <tspan x="20" class="g">  [ok] </tspan><tspan class="o">DATABASE_URL: set</tspan>
+</text>
+
+<!-- 18. [ok] PostgreSQL  t=11.4s 63.3% -->
+<text y="461" class="t l18" font-size="13">
+  <tspan x="20" class="g">  [ok] </tspan><tspan class="o">PostgreSQL: connection ok</tspan>
+</text>
+
+<!-- 19. $ (blinking cursor)  t=12.0s 66.7% -->
+<g class="l19">
+  <text y="480" class="t" font-size="13">
+    <tspan x="20" class="p">$</tspan><tspan class="c"> </tspan>
+  </text>
+  <rect x="34" y="467" width="8" height="14" fill="#e6edf3" class="cur"/>
+</g>
+
+</svg>

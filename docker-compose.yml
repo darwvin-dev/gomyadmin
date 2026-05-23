@@ -1,0 +1,45 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: gomyadmin
+      POSTGRES_PASSWORD: gomyadmin
+      POSTGRES_DB: gomyadmin
+    ports:
+      - "5432:5432"
+    volumes:
+      - gomyadmin-postgres:/var/lib/postgresql/data
+      - ./templates/backend-go/internal/db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gomyadmin"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: templates/backend-go/Dockerfile
+    environment:
+      DATABASE_URL: postgres://gomyadmin:gomyadmin@postgres:5432/gomyadmin?sslmode=disable
+      GOMYADMIN_PUBLIC_URL: http://localhost:3000
+      LOG_LEVEL: info
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: .
+      dockerfile: templates/frontend-next-shadcn/Dockerfile
+    environment:
+      NEXT_PUBLIC_ADMIN_API_URL: http://localhost:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  gomyadmin-postgres:
