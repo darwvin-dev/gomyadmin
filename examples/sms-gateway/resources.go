@@ -1,6 +1,6 @@
 package smsgateway
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 type SMSMessage struct{}
 type Provider struct{}

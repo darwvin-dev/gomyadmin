@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/darwvin/gomyadmin/pkg/logger"
-	"github.com/darwvin/gomyadmin/templates/backend-go/internal/app"
+	"github.com/darwvin-dev/gomyadmin/pkg/logger"
+	"github.com/darwvin-dev/gomyadmin/templates/backend-go/internal/app"
 )
 
 func main() {

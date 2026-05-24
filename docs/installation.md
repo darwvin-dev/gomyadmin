@@ -1,7 +1,7 @@
 # Installation
 
 ```sh
-go install github.com/darwvin/gomyadmin/cmd/gomyadmin@latest
+go install github.com/darwvin-dev/gomyadmin/cmd/gomyadmin@latest
 ```
 
 Create an app:

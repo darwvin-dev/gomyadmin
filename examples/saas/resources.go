@@ -1,6 +1,6 @@
 package saas
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 type Organization struct{}
 type User struct{}

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 func TestMemorySessionStoreCreateAndGet(t *testing.T) {

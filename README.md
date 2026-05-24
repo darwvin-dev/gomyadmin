@@ -6,7 +6,7 @@ Introspect your schema, define your resources in code, ship a production-ready N
 [![Go 1.23+](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go&logoColor=white)](https://go.dev)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![CI](https://github.com/darwvin/gomyadmin/actions/workflows/ci.yml/badge.svg)](https://github.com/darwvin/gomyadmin/actions/workflows/ci.yml)
+[![CI](https://github.com/darwvin-dev/gomyadmin/actions/workflows/ci.yml/badge.svg)](https://github.com/darwvin-dev/gomyadmin/actions/workflows/ci.yml)
 
 <p align="center">
   <img src="docs/demo-cli.svg" alt="GoMyAdmin CLI demo" width="720" /><br/>
@@ -38,7 +38,7 @@ The generated stack is **explicit Go + explicit SQL + explicit TypeScript** — 
 
 ```sh
 # install the CLI
-go install github.com/darwvin/gomyadmin/cmd/gomyadmin@latest
+go install github.com/darwvin-dev/gomyadmin/cmd/gomyadmin@latest
 
 # scaffold a new admin app
 gomyadmin init my-admin --backend go --db postgres --frontend next --ui shadcn
@@ -57,7 +57,7 @@ Open [http://localhost:3000/admin](http://localhost:3000/admin) and log in with 
 Define your admin resources in plain Go with a fluent builder:
 
 ```go
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 app := admin.New("Acme Admin")
 
@@ -129,18 +129,32 @@ gomyadmin introspect --database-url "$DATABASE_URL" > schema.json
 }
 ```
 
-### 2. Generate a resource scaffold
+### 2a. Generate a single resource scaffold
 
 ```sh
 gomyadmin generate resource User --table users
 # → backend/internal/admin/user_resource.go
 ```
 
+### 2b. Generate all resources from a schema in one pass
+
+```sh
+gomyadmin introspect --database-url "$DATABASE_URL" > schema.json
+gomyadmin generate from-schema schema.json
+# → backend/internal/admin/user_resource.go
+# → backend/internal/admin/invoice_resource.go
+# → backend/internal/admin/... (one file per table)
+```
+
+Column types, searchable/sortable/filterable flags, primary keys, and readonly
+timestamps are all derived automatically from the schema. Pass `--force` to
+overwrite files you want to regenerate.
+
 ```go
 // backend/internal/admin/user_resource.go
 package adminapp
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 type User struct{}
 
@@ -171,6 +185,7 @@ gomyadmin serve
 ```sh
 gomyadmin init         <name> [--backend go] [--db postgres] [--frontend next] [--ui shadcn]
 gomyadmin generate     resource <Name> [--table <table>] [--package <pkg>] [--force]
+gomyadmin generate     from-schema <schema.json> [--package <pkg>] [--force]
 gomyadmin introspect   [--database-url <url>]
 gomyadmin serve
 gomyadmin dev
@@ -203,6 +218,7 @@ pkg/
   pagination/                   page + per_page parsing
   postgres/                     pgx connection pool + safe SQL query builder
   rbac/                         role-based access control + wildcard permissions
+  server/                       drop-in HTTP handler; mount admin on any Go backend
   storage/                      Storage interface; local filesystem + in-memory adapters
   tenant/                       tenant context + resolver interface
 templates/
@@ -301,6 +317,128 @@ ok, err   := auth.VerifyPassword(plaintext, hash)
 
 ---
 
+## Drop-In Integration (`pkg/server`)
+
+If you already have a Go backend, you can add a fully functional admin panel in four lines — no new project required.
+
+### Installation
+
+```sh
+go get github.com/darwvin-dev/gomyadmin@latest
+```
+
+### Wiring it up
+
+```go
+import (
+    "github.com/darwvin-dev/gomyadmin/pkg/admin"
+    "github.com/darwvin-dev/gomyadmin/pkg/server"
+)
+
+// 1. Define your resources (or re-use an existing *admin.App)
+app := admin.New("My App")
+app.Resource(User{}).
+    Label("Users").TableName("users").
+    Field("ID").UUID().Primary().Readonly().
+    Field("Email").Email().Required().Searchable().Sortable().
+    Field("Name").String().Searchable().
+    Field("Status").Enum("active", "blocked").Filterable().Badge().
+    Field("CreatedAt").DateTime().Readonly().Sortable().
+    Audit()
+
+// 2. Create the admin server — it creates its own internal tables at startup
+srv, err := server.New(ctx, server.Config{
+    DatabaseURL:  os.Getenv("DATABASE_URL"),
+    App:          app,
+    Authenticate: func(ctx context.Context, email, password string) (admin.Actor, bool, error) {
+        return myDB.VerifyAdminCredentials(ctx, email, password)
+    },
+})
+if err != nil { log.Fatal(err) }
+defer srv.Close()
+
+// 3. Mount on any mux — net/http, chi, gorilla/mux, echo, …
+mux.Handle("/admin/", srv.Handler())
+```
+
+That's it. The handler serves these endpoints under `/admin/api/`:
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/admin/api/auth/login` | Rate-limited login; sets session cookie + CSRF token |
+| POST | `/admin/api/auth/logout` | Clears session |
+| GET  | `/admin/api/me` | Current actor + tenant list |
+| GET  | `/admin/api/resources` | Resource metadata (fields, actions, types) |
+| GET  | `/admin/api/{table}` | List with search, sort, filter, pagination |
+| POST | `/admin/api/{table}` | Create |
+| GET  | `/admin/api/{table}/{id}` | Fetch one |
+| PATCH | `/admin/api/{table}/{id}` | Update |
+| DELETE | `/admin/api/{table}/{id}` | Delete |
+| POST | `/admin/api/{table}/{id}/actions/{action}` | Custom action |
+| POST | `/admin/api/{table}/bulk-actions/{action}` | Bulk action |
+| GET  | `/admin/api/{table}/export` | CSV export |
+| GET  | `/admin/api/audit` | Audit log |
+| POST | `/admin/api/files` | File upload (10 MB limit) |
+| GET  | `/admin/api/files` | List uploaded files |
+| GET  | `/admin/api/files/{id}` | Download file |
+
+### Configuration
+
+```go
+server.Config{
+    // Required — one of:
+    DatabaseURL string          // connects and manages the pool
+    Pool        *pgxpool.Pool   // use your existing pool (you close it)
+
+    // Resource registry
+    App *admin.App              // nil → empty registry
+
+    // Authentication
+    Authenticate func(ctx, email, password) (admin.Actor, bool, error)
+    // nil → all logins return 401
+
+    // Optional tenant switcher shown in the UI
+    Tenants func(ctx, actor) ([]map[string]string, error)
+
+    // File storage — defaults to local disk at UploadDir
+    Uploads   storage.Storage   // set to use S3/R2/MinIO
+    UploadDir string            // "tmp/uploads" by default
+
+    // CORS / URL
+    PublicURL string            // GOMYADMIN_PUBLIC_URL env var, then "http://localhost:8080"
+
+    Log *slog.Logger            // JSON on stderr by default
+}
+```
+
+### Using S3 for file uploads
+
+```go
+s3, err := storage.NewS3(storage.S3Config{
+    Bucket:          "my-bucket",
+    Region:          "us-east-1",
+    AccessKeyID:     os.Getenv("S3_KEY"),
+    SecretAccessKey: os.Getenv("S3_SECRET"),
+})
+srv, _ := server.New(ctx, server.Config{
+    DatabaseURL: os.Getenv("DATABASE_URL"),
+    App:         app,
+    Uploads:     s3,
+})
+```
+
+### Internal tables created at startup
+
+`New` runs `CREATE TABLE IF NOT EXISTS` for three tables — all prefixed `gomyadmin_` to avoid conflicts with your own schema:
+
+| Table | Purpose |
+|---|---|
+| `gomyadmin_sessions` | Session tokens (via `auth.PGSessionStore`) |
+| `gomyadmin_audit_logs` | Admin action history |
+| `gomyadmin_files` | Uploaded file metadata |
+
+---
+
 ## PostgreSQL Stores
 
 Both the session store and the audit store ship PostgreSQL-backed implementations alongside the built-in in-memory ones. Use the PG stores in production and the memory stores in tests.
@@ -309,7 +447,7 @@ Both the session store and the audit store ship PostgreSQL-backed implementation
 
 ```go
 import (
-    "github.com/darwvin/gomyadmin/pkg/auth"
+    "github.com/darwvin-dev/gomyadmin/pkg/auth"
     "github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -330,7 +468,7 @@ deleted, err := store.Cleanup(ctx)   // deletes all expired rows, returns count
 ### Audit store
 
 ```go
-import "github.com/darwvin/gomyadmin/pkg/audit"
+import "github.com/darwvin-dev/gomyadmin/pkg/audit"
 
 store := audit.NewPGStore(pool)
 if err := store.Migrate(ctx); err != nil { /* … */ }   // run once at startup
@@ -382,11 +520,22 @@ if !authorizer.Can(actor, "invoices.delete") {
 
 ## File Storage
 
-The `storage.Storage` interface is implemented by two adapters:
+The `storage.Storage` interface is implemented by three adapters:
 
 ```go
-// local filesystem (production-ready for single-node deployments)
+// local filesystem (single-node deployments)
 store := storage.NewLocal("/var/data/uploads", "https://cdn.example.com")
+
+// S3-compatible (AWS S3, Cloudflare R2, MinIO — no SDK dependency)
+store, err := storage.NewS3(storage.S3Config{
+    Endpoint:        "https://<accountid>.r2.cloudflarestorage.com", // omit for AWS
+    Region:          "auto",
+    Bucket:          "my-uploads",
+    AccessKeyID:     os.Getenv("S3_ACCESS_KEY_ID"),
+    SecretAccessKey: os.Getenv("S3_SECRET_ACCESS_KEY"),
+    PublicBaseURL:   "https://cdn.example.com",
+    ForcePathStyle:  true, // required for R2 and MinIO
+})
 
 // in-memory (tests and CI)
 store := storage.NewMemory("http://localhost:8080/uploads")
@@ -456,7 +605,7 @@ os.WriteFile("openapi.json", data, 0644)
 ## Running the Demo
 
 ```sh
-git clone https://github.com/darwvin/gomyadmin
+git clone https://github.com/darwvin-dev/gomyadmin
 cd gomyadmin
 make demo
 # → docker compose up --build
@@ -512,10 +661,11 @@ npm run build
 - [x] OpenAPI 3.1 spec generation
 - [x] Multi-tenancy with pluggable resolver
 - [x] PostgreSQL-backed session and audit stores
-- [ ] S3 / R2 storage adapter
+- [x] S3 / R2 storage adapter
+- [x] `gomyadmin generate from-schema` — reads `schema.json` and produces resource files in one pass
+- [x] `pkg/server` — drop-in HTTP handler; mount an admin panel on any existing Go backend in 4 lines
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e tests for the CRM demo
-- [ ] `gomyadmin generate` that reads `schema.json` and produces resource files in one pass
 
 ---
 

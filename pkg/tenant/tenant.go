@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 var ErrTenantRequired = errors.New("tenant is required")

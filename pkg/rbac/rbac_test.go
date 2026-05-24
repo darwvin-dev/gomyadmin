@@ -3,7 +3,7 @@ package rbac
 import (
 	"testing"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 func TestAuthorizerWildcardPermissions(t *testing.T) {

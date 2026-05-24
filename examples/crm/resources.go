@@ -1,6 +1,6 @@
 package crm
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 type Lead struct{}
 type Customer struct{}

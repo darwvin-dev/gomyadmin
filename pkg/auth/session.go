@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 var ErrSessionNotFound = errors.New("session not found")

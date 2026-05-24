@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 type RateLimiter struct {

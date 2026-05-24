@@ -3,7 +3,7 @@ package introspect
 import (
 	"strings"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 // ColumnToFieldType maps a PostgreSQL data_type string to the closest admin.FieldType.

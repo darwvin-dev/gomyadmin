@@ -5,7 +5,7 @@ Thanks for helping make GoMyAdmin a serious Go backoffice framework.
 ## Local development
 
 ```sh
-git clone https://github.com/darwvin/gomyadmin
+git clone https://github.com/darwvin-dev/gomyadmin
 cd gomyadmin
 cp .env.example .env
 make demo          # starts PostgreSQL + Go backend + Next.js frontend via Docker Compose

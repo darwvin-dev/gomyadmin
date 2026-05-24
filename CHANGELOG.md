@@ -5,6 +5,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.3.0] — 2026-05-24
+
+### Added
+
+**Drop-in HTTP handler (`pkg/server`)**
+- `New(ctx, Config) (*AdminServer, error)` — connects to PostgreSQL (or accepts an existing pool), runs `CREATE TABLE IF NOT EXISTS` for `gomyadmin_sessions`, `gomyadmin_audit_logs`, and `gomyadmin_files`, then returns a ready server
+- `AdminServer.Handler() http.Handler` — mounts all admin API routes under `/admin/api/`; compatible with any Go HTTP multiplexer (`net/http`, chi, gorilla/mux, echo, …)
+- `AdminServer.Close()` — only closes the pool when `DatabaseURL` was supplied; callers who pass their own `Pool` retain ownership
+- `Config.Authenticate` callback — plug in any existing user authentication logic; nil → 401 on all logins
+- `Config.Tenants` callback — optional tenant list for the "me" endpoint
+- `Config.Uploads` field — override the default local file storage with S3/R2/MinIO
+- `camelToSnake` — converts `*admin.Field` names (CamelCase) to SQL column names (`"CreatedAt"→"created_at"`, `"TenantID"→"tenant_id"`, `"APIKey"→"api_key"`)
+- Auto-generates primary keys: UUID v4 for `FieldUUID` primary keys; random hex otherwise
+- Hashes `FieldPassword` values with Argon2id on create and update
+- Full CRUD, bulk actions, CSV export, file upload/download, and audit log endpoints
+- CORS, rate-limited login, session cookie, CSRF token — all wired in automatically
+
+---
+
+## [0.2.0] — 2026-05-23
+
+### Added
+
+**S3-compatible storage adapter (`pkg/storage`)**
+- `NewS3(S3Config) (*S3Store, error)` — zero-dependency S3/R2/MinIO adapter using AWS Signature Version 4
+- Implements `Storage` (Put, Get, Delete, SignedURL) and `Inspector` (Stat)
+- Virtual-hosted and path-style URL modes; `ForcePathStyle` for R2 and MinIO
+- `PublicBaseURL` populates the `StoredObject.URL` on Stat
+- Presigned GET URLs generated entirely client-side (no round-trip)
+- Parses S3-compatible XML error responses into descriptive Go errors
+
+**Schema-driven resource generation (`internal/generator`, `internal/cli`)**
+- `gomyadmin generate from-schema <schema.json>` — reads the JSON produced by `gomyadmin introspect` and writes one resource file per table in a single pass
+- Column names are converted to CamelCase Go identifiers with acronym expansion (`id`→`ID`, `api`→`API`, `url`→`URL`)
+- Table names are singularized and CamelCased (`users`→`User`, `api_keys`→`APIKey`, `categories`→`Category`)
+- Field attributes are derived automatically: email/password heuristics, searchable, sortable, filterable, readonly on timestamps and primary keys
+- `GeneratedField` gains `Primary` and `Readonly` flags; the resource template emits `.Primary()` and `.Readonly()` when set
+- Default ID field in `GenerateResource` now sets `Primary: true, Readonly: true`
+
+---
+
 ## [0.1.0] — 2026-05-23
 
 Initial public release.
@@ -79,4 +120,4 @@ Initial public release.
 
 ---
 
-[0.1.0]: https://github.com/darwvin/gomyadmin/releases/tag/v0.1.0
+[0.1.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.1.0

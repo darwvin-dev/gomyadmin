@@ -123,6 +123,8 @@ type ResourceOptions struct {
 type GeneratedField struct {
 	Name       string
 	Type       string
+	Primary    bool
+	Readonly   bool
 	Searchable bool
 	Sortable   bool
 	Filterable bool
@@ -141,9 +143,9 @@ func GenerateResource(options ResourceOptions) error {
 	}
 	if len(options.Fields) == 0 {
 		options.Fields = []GeneratedField{
-			{Name: "ID", Type: "UUID", Sortable: true},
+			{Name: "ID", Type: "UUID", Primary: true, Readonly: true, Sortable: true},
 			{Name: "Name", Type: "String", Searchable: true, Sortable: true, Required: true},
-			{Name: "CreatedAt", Type: "DateTime", Sortable: true, Filterable: true},
+			{Name: "CreatedAt", Type: "DateTime", Readonly: true, Sortable: true, Filterable: true},
 		}
 	}
 	if err := os.MkdirAll(filepath.Join("backend", "internal", "admin"), 0o755); err != nil {
@@ -334,7 +336,7 @@ const backendGoModTemplate = `module {{.Module}}/backend
 
 go 1.23
 
-require github.com/darwvin/gomyadmin v0.1.0
+require github.com/darwvin-dev/gomyadmin v0.1.0
 `
 
 const backendMainTemplate = `package main
@@ -398,7 +400,7 @@ const resourcesTemplate = `package admin
 import (
 	"net/http"
 
-	forge "github.com/darwvin/gomyadmin/pkg/admin"
+	forge "github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 type User struct{}
@@ -526,7 +528,7 @@ const loginPageTemplate = `export default function LoginPage() {
 
 const resourceTemplate = `package {{.Package}}
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 type {{.Name}} struct{}
 
@@ -535,7 +537,7 @@ func Register{{.Name}}Resource(app *admin.App) {
 		Label("{{.Name}}").
 		TableName("{{.Table}}").
 {{- range .Fields }}
-		Field("{{.Name}}").{{.Type}}(){{ if .Required }}.Required(){{ end }}{{ if .Searchable }}.Searchable(){{ end }}{{ if .Sortable }}.Sortable(){{ end }}{{ if .Filterable }}.Filterable(){{ end }}.
+		Field("{{.Name}}").{{.Type}}(){{ if .Primary }}.Primary(){{ end }}{{ if .Readonly }}.Readonly(){{ end }}{{ if .Required }}.Required(){{ end }}{{ if .Searchable }}.Searchable(){{ end }}{{ if .Sortable }}.Sortable(){{ end }}{{ if .Filterable }}.Filterable(){{ end }}.
 {{- end }}
 		Audit()
 }

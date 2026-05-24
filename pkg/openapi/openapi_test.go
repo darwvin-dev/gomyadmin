@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 func buildTestApp() *admin.App {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/darwvin/gomyadmin/pkg/filters"
+	"github.com/darwvin-dev/gomyadmin/pkg/filters"
 )
 
 type QueryBuilder struct {

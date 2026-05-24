@@ -1,4 +1,4 @@
-module github.com/darwvin/gomyadmin
+module github.com/darwvin-dev/gomyadmin
 
 go 1.23
 

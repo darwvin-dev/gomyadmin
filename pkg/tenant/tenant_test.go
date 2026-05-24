@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 func TestActorResolverRequiresTenant(t *testing.T) {

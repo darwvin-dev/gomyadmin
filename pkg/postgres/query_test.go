@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/darwvin/gomyadmin/pkg/filters"
+	"github.com/darwvin-dev/gomyadmin/pkg/filters"
 )
 
 func TestQueryBuilderUsesParameters(t *testing.T) {

@@ -1,6 +1,6 @@
 package rbac
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 const (
 	RoleSuperAdmin  = "super_admin"

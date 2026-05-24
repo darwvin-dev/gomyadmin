@@ -3,7 +3,7 @@ package app
 import (
 	"time"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 type Record map[string]any

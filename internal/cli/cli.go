@@ -9,12 +9,130 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/darwvin/gomyadmin/internal/doctor"
-	"github.com/darwvin/gomyadmin/internal/generator"
-	"github.com/darwvin/gomyadmin/internal/introspect"
-	"github.com/darwvin/gomyadmin/pkg/admin"
-	"github.com/darwvin/gomyadmin/pkg/openapi"
+	"github.com/darwvin-dev/gomyadmin/internal/doctor"
+	"github.com/darwvin-dev/gomyadmin/internal/generator"
+	"github.com/darwvin-dev/gomyadmin/internal/introspect"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/openapi"
 )
+
+// fieldTypeMethodName maps an admin.FieldType to the Go method name used in
+// generated resource files (e.g. admin.FieldDateTime → "DateTime").
+func fieldTypeMethodName(ft admin.FieldType) string {
+	switch ft {
+	case admin.FieldDateTime:
+		return "DateTime"
+	case admin.FieldUUID:
+		return "UUID"
+	case admin.FieldJSON:
+		return "JSON"
+	case admin.FieldJSONB:
+		return "JSONB"
+	case admin.FieldMoney:
+		// Money() requires a currency arg; fall back to Decimal so the file
+		// compiles out of the box. The user can always refine it.
+		return "Decimal"
+	default:
+		s := string(ft)
+		if len(s) == 0 {
+			return "String"
+		}
+		return strings.ToUpper(s[:1]) + s[1:]
+	}
+}
+
+// singularize applies simple English pluralisation rules to a single word.
+func singularize(word string) string {
+	switch {
+	case strings.HasSuffix(word, "ies") && len(word) > 3:
+		return word[:len(word)-3] + "y"
+	case strings.HasSuffix(word, "sses") || strings.HasSuffix(word, "xes") ||
+		strings.HasSuffix(word, "zes") || strings.HasSuffix(word, "ches") ||
+		strings.HasSuffix(word, "shes"):
+		return word[:len(word)-2]
+	case strings.HasSuffix(word, "ses"):
+		return word[:len(word)-2]
+	case strings.HasSuffix(word, "s") && !strings.HasSuffix(word, "ss") && len(word) > 1:
+		return word[:len(word)-1]
+	default:
+		return word
+	}
+}
+
+// tableToResourceName converts a snake_case table name to a CamelCase Go type
+// name, singularizing each word segment.
+// Examples: "users" → "User", "user_profiles" → "UserProfile", "categories" → "Category"
+func tableToResourceName(table string) string {
+	acronyms := map[string]string{
+		"id":   "ID",
+		"url":  "URL",
+		"uuid": "UUID",
+		"api":  "API",
+		"ip":   "IP",
+		"uri":  "URI",
+	}
+	words := strings.Split(strings.ToLower(table), "_")
+	var sb strings.Builder
+	for _, word := range words {
+		if word == "" {
+			continue
+		}
+		sing := singularize(word)
+		if a, ok := acronyms[sing]; ok {
+			sb.WriteString(a)
+		} else {
+			sb.WriteString(strings.ToUpper(sing[:1]) + sing[1:])
+		}
+	}
+	return sb.String()
+}
+
+// columnToFieldName converts a snake_case column name to a CamelCase Go
+// identifier, expanding common acronyms.
+// Examples: "id" → "ID", "created_at" → "CreatedAt", "api_key" → "APIKey"
+func columnToFieldName(col string) string {
+	acronyms := map[string]string{
+		"id":   "ID",
+		"url":  "URL",
+		"uuid": "UUID",
+		"api":  "API",
+		"ip":   "IP",
+		"uri":  "URI",
+	}
+	words := strings.Split(strings.ToLower(col), "_")
+	var sb strings.Builder
+	for _, word := range words {
+		if word == "" {
+			continue
+		}
+		if a, ok := acronyms[word]; ok {
+			sb.WriteString(a)
+		} else {
+			sb.WriteString(strings.ToUpper(word[:1]) + word[1:])
+		}
+	}
+	return sb.String()
+}
+
+// columnToField converts an introspect.Column into a generator.GeneratedField
+// using heuristics from the introspect package.
+func columnToField(col introspect.Column, isPK bool) generator.GeneratedField {
+	ft := introspect.SuggestFieldType(col)
+	gf := generator.GeneratedField{
+		Name:       columnToFieldName(col.Name),
+		Type:       fieldTypeMethodName(ft),
+		Primary:    isPK,
+		Readonly:   isPK || introspect.IsLikelyTimestamp(col),
+		Searchable: introspect.IsSearchable(col),
+		Sortable:   introspect.IsSortable(col),
+		Required:   !col.Nullable && !isPK,
+	}
+	switch ft {
+	case admin.FieldBoolean, admin.FieldDate, admin.FieldDateTime:
+		gf.Filterable = true
+	}
+	return gf
+}
 
 const Version = "0.1.0"
 
@@ -128,6 +246,8 @@ func runGenerate(args []string) int {
 		}
 		fmt.Println("Generated resource", title(name))
 		return 0
+	case "from-schema":
+		return runGenerateFromSchema(args[1:])
 	case "frontend", "backend", "all":
 		fmt.Printf("Generation target %q is available through `gomyadmin init` and template customization.\n", args[0])
 		return 0
@@ -191,7 +311,7 @@ func runDoctor(args []string) int {
 func runDemo() int {
 	name := "gomyadmin-demo"
 	if _, err := os.Stat(name); os.IsNotExist(err) {
-		if err := generator.InitProject(generator.InitOptions{Name: name, Module: "github.com/darwvin/gomyadmin-demo"}); err != nil {
+		if err := generator.InitProject(generator.InitOptions{Name: name, Module: "github.com/darwvin-dev/gomyadmin-demo"}); err != nil {
 			fmt.Fprintln(os.Stderr, "demo init failed:", err)
 			return 1
 		}
@@ -248,6 +368,73 @@ func runOpenAPI(args []string) int {
 	return 0
 }
 
+func runGenerateFromSchema(args []string) int {
+	fs := flag.NewFlagSet("generate from-schema", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	pkg := fs.String("package", "adminapp", "Go package name for generated files")
+	force := fs.Bool("force", false, "overwrite existing files")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if fs.NArg() == 0 {
+		fmt.Fprintln(os.Stderr, "usage: gomyadmin generate from-schema <schema.json> [--package adminapp] [--force]")
+		return 2
+	}
+	schemaPath := fs.Arg(0)
+
+	data, err := os.ReadFile(schemaPath)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "could not read schema file:", err)
+		return 1
+	}
+	var schema introspect.Schema
+	if err := json.Unmarshal(data, &schema); err != nil {
+		fmt.Fprintln(os.Stderr, "invalid schema JSON:", err)
+		return 1
+	}
+	if len(schema.Tables) == 0 {
+		fmt.Fprintln(os.Stderr, "no tables found in schema")
+		return 1
+	}
+
+	generated := 0
+	failed := 0
+	for _, table := range schema.Tables {
+		pkSet := make(map[string]bool, len(table.PrimaryKey))
+		for _, pk := range table.PrimaryKey {
+			pkSet[pk] = true
+		}
+
+		fields := make([]generator.GeneratedField, 0, len(table.Columns))
+		for _, col := range table.Columns {
+			fields = append(fields, columnToField(col, pkSet[col.Name]))
+		}
+
+		resourceName := tableToResourceName(table.Name)
+		opts := generator.ResourceOptions{
+			Name:      resourceName,
+			Package:   *pkg,
+			Table:     table.Name,
+			Fields:    fields,
+			Overwrite: *force,
+		}
+		if genErr := generator.GenerateResource(opts); genErr != nil {
+			fmt.Fprintf(os.Stderr, "  skip %s: %v\n", resourceName, genErr)
+			failed++
+			continue
+		}
+		fmt.Printf("  generated %s (table: %s)\n", resourceName, table.Name)
+		generated++
+	}
+
+	fmt.Printf("Done: %d generated", generated)
+	if failed > 0 {
+		fmt.Printf(", %d skipped", failed)
+	}
+	fmt.Println()
+	return 0
+}
+
 func runCommand(name string, args ...string) int {
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
@@ -279,7 +466,7 @@ Commands:
   dev          Run docker compose for local development
   build        Build docker compose services
   serve        Run the Go admin backend
-  generate     Generate resources, actions, policies, frontend, or backend files
+  generate     Generate resource files (from template or schema.json)
   introspect   Inspect a PostgreSQL schema
   migrate      Run generated app migrations
   seed         Seed generated app demo data
@@ -292,6 +479,7 @@ Examples:
   gomyadmin init my-admin-app --backend go --db postgres --frontend next --ui shadcn
   gomyadmin introspect --database-url "$DATABASE_URL"
   gomyadmin generate resource User --table users
+  gomyadmin generate from-schema schema.json --force
   gomyadmin serve
   gomyadmin doctor
 `)

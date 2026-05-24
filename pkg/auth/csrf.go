@@ -3,7 +3,7 @@ package auth
 import (
 	"net/http"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 const csrfHeader = "X-CSRF-Token"

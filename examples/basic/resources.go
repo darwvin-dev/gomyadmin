@@ -1,6 +1,6 @@
 package basic
 
-import "github.com/darwvin/gomyadmin/pkg/admin"
+import "github.com/darwvin-dev/gomyadmin/pkg/admin"
 
 type User struct{}
 type Role struct{}

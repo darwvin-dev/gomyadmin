@@ -3,7 +3,7 @@ package introspect
 import (
 	"testing"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 func TestColumnToFieldType(t *testing.T) {

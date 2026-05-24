@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/darwvin/gomyadmin/pkg/pagination"
+	"github.com/darwvin-dev/gomyadmin/pkg/pagination"
 )
 
 type FieldType string

@@ -20,9 +20,9 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/darwvin/gomyadmin/pkg/admin"
-	"github.com/darwvin/gomyadmin/pkg/auth"
-	"github.com/darwvin/gomyadmin/pkg/storage"
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/auth"
+	"github.com/darwvin-dev/gomyadmin/pkg/storage"
 )
 
 type Server struct {

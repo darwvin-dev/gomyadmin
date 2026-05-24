@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/darwvin/gomyadmin/internal/cli"
+	"github.com/darwvin-dev/gomyadmin/internal/cli"
 )
 
 func main() {
