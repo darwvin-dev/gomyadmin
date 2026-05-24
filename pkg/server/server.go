@@ -21,6 +21,9 @@
 //	defer srv.Close()
 //
 //	mux.Handle("/admin/", srv.Handler())
+//
+// Existing applications can pass Config.Store and Config.SessionStore to use
+// their own database, ORM, service layer, Redis, Memcached, or cache system.
 package server
 
 import (
@@ -47,6 +50,18 @@ type Config struct {
 	// Mutually exclusive with DatabaseURL.
 	// The caller remains responsible for closing it; AdminServer.Close() will not close it.
 	Pool *pgxpool.Pool
+
+	// Store is a custom persistence adapter.
+	// Supply this when your application already uses another database, ORM, or
+	// service layer. When Store is set, DatabaseURL and Pool are optional and no
+	// PostgreSQL migrations are run by GoMyAdmin.
+	Store AdminStore
+
+	// SessionStore overrides the built-in PostgreSQL session store.
+	// Use this for Redis, Memcached, database/sql, or an existing cache layer.
+	// When omitted with DatabaseURL/Pool, PostgreSQL sessions are used. When
+	// omitted with Store-only configuration, an in-memory session store is used.
+	SessionStore auth.SessionStore
 
 	// App is the resource registry built with admin.New and app.Resource().
 	// An empty App is created automatically when nil.
@@ -89,17 +104,19 @@ type AdminServer struct {
 	cfg      Config
 	log      *slog.Logger
 	app      *admin.App
-	store    *serverStore
+	store    AdminStore
 	sessions *auth.SessionManager
 	uploads  storage.Storage
 }
 
-// New creates an AdminServer. It connects to PostgreSQL when DatabaseURL is set,
-// creates the sessions table (via auth.PGSessionStore.Migrate) and internal audit/
-// file tables, then returns a server ready to handle requests.
+// New creates an AdminServer.
+//
+// With DatabaseURL or Pool, it uses the built-in PostgreSQL adapter and runs
+// GoMyAdmin's internal migrations. With Config.Store, it uses the caller's
+// adapter and does not require PostgreSQL.
 func New(ctx context.Context, cfg Config) (*AdminServer, error) {
-	if cfg.DatabaseURL == "" && cfg.Pool == nil {
-		return nil, errors.New("server.Config: DatabaseURL or Pool is required")
+	if cfg.Store == nil && cfg.DatabaseURL == "" && cfg.Pool == nil {
+		return nil, errors.New("server.Config: Store, DatabaseURL, or Pool is required")
 	}
 	if cfg.DatabaseURL != "" && cfg.Pool != nil {
 		return nil, errors.New("server.Config: supply DatabaseURL or Pool, not both")
@@ -117,31 +134,29 @@ func New(ctx context.Context, cfg Config) (*AdminServer, error) {
 		cfg.PublicURL = envOr("GOMYADMIN_PUBLIC_URL", "http://localhost:8080")
 	}
 
-	pool := cfg.Pool
-	if pool == nil {
-		var err error
-		pool, err = pgxpool.New(ctx, cfg.DatabaseURL)
-		if err != nil {
+	var pool *pgxpool.Pool
+	var st AdminStore
+	if cfg.Store != nil {
+		st = cfg.Store
+	} else {
+		pool = cfg.Pool
+		if pool == nil {
+			var err error
+			pool, err = pgxpool.New(ctx, cfg.DatabaseURL)
+			if err != nil {
+				return nil, err
+			}
+			cfg.ownPool = true
+			cfg.Pool = pool
+		}
+
+		st = newServerStore(pool, cfg.App)
+		if err := st.(*serverStore).migrate(ctx); err != nil {
+			if cfg.ownPool {
+				pool.Close()
+			}
 			return nil, err
 		}
-		cfg.ownPool = true
-		cfg.Pool = pool
-	}
-
-	pgSessions := auth.NewPGSessionStore(pool)
-	if err := pgSessions.Migrate(ctx); err != nil {
-		if cfg.ownPool {
-			pool.Close()
-		}
-		return nil, err
-	}
-
-	st := newServerStore(pool, cfg.App)
-	if err := st.migrate(ctx); err != nil {
-		if cfg.ownPool {
-			pool.Close()
-		}
-		return nil, err
 	}
 
 	uploads := cfg.Uploads
@@ -149,12 +164,28 @@ func New(ctx context.Context, cfg Config) (*AdminServer, error) {
 		uploads = storage.NewLocal(cfg.UploadDir, cfg.PublicURL+"/admin/api/files")
 	}
 
+	sessionStore := cfg.SessionStore
+	if sessionStore == nil {
+		if pool != nil {
+			pgSessions := auth.NewPGSessionStore(pool)
+			if err := pgSessions.Migrate(ctx); err != nil {
+				if cfg.ownPool {
+					pool.Close()
+				}
+				return nil, err
+			}
+			sessionStore = pgSessions
+		} else {
+			sessionStore = auth.NewMemorySessionStore()
+		}
+	}
+
 	return &AdminServer{
 		cfg:      cfg,
 		log:      cfg.Log,
 		app:      cfg.App,
 		store:    st,
-		sessions: auth.NewSessionManager(pgSessions),
+		sessions: auth.NewSessionManager(sessionStore),
 		uploads:  uploads,
 	}, nil
 }

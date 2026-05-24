@@ -130,7 +130,7 @@ func (s *AdminServer) handleList(w http.ResponseWriter, r *http.Request) {
 		s.deny(w, r, table)
 		return
 	}
-	if _, ok := s.store.resource(table); !ok {
+	if !s.store.HasResource(table) {
 		admin.WriteError(w, http.StatusNotFound, reqID(r), "NOT_FOUND", "Resource not found", nil)
 		return
 	}

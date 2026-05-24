@@ -6,8 +6,23 @@ import (
 	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
-// record is a generic database row or JSON payload.
-type record = map[string]any
+// Record is a generic database row or JSON payload used by AdminStore adapters.
+type Record = map[string]any
+
+// record is kept as an internal readability alias.
+type record = Record
+
+// ResourceMeta describes one admin resource as exposed to clients and stores.
+type ResourceMeta = resourceMeta
+
+// FieldMeta describes one resource field as exposed to clients and stores.
+type FieldMeta = fieldMeta
+
+// ActionMeta describes one resource action as exposed to clients and stores.
+type ActionMeta = actionMeta
+
+// AuditEvent describes one admin audit entry.
+type AuditEvent = auditEvent
 
 type resourceMeta struct {
 	Name        string       `json:"name"`

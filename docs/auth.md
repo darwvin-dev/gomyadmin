@@ -22,6 +22,8 @@ Production requirements:
 - Store sessions in PostgreSQL or Redis when running more than one backend instance.
 - Keep session TTLs short for admin surfaces.
 
+Existing applications can pass any implementation of `auth.SessionStore` through `server.Config.SessionStore`. This is the integration point for Redis, Memcached, SQL-backed sessions, or an existing internal session service.
+
 ## CSRF
 
 Login issues a CSRF token cookie. Mutating admin requests should send the token back in `X-CSRF-Token`. The generated API already allows this header in CORS.

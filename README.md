@@ -102,6 +102,7 @@ Every method returns the same type, so you chain as far as you like and your IDE
 | **OpenAPI 3.1** | Generated spec for all resource endpoints and actions |
 | **Docker / Compose** | Full local dev environment included |
 | **CI-ready** | GitHub Actions workflow included |
+| **Drop-in adapters** | Mount on existing Go backends with custom database, cache/session, auth, and storage adapters |
 
 ---
 
@@ -212,6 +213,7 @@ pkg/
   admin/                        resource metadata API (App, Resource, Field, Action, Policy)
   auth/                         Argon2id passwords, sessions, CSRF, rate limiting
   audit/                        structured audit event contracts + in-memory store
+  cache/                        tiny cache adapter contract + in-memory implementation
   filters/                      search / sort / filter query parsing
   logger/                       structured JSON logger (slog)
   openapi/                      OpenAPI 3.1 spec generation
@@ -622,6 +624,7 @@ The demo backend includes users, customers, invoices, invoice items, payments, t
 
 - [Authentication and sessions](docs/auth.md)
 - [Stable CLI init flow](docs/cli-init.md)
+- [Drop-in adapters for existing Go backends](docs/drop-in-adapters.md)
 - [Versioned migrations](docs/migrations.md)
 - [PostgreSQL CRM schema example](examples/postgres-crm/README.md)
 
@@ -675,6 +678,8 @@ npm run build
 - [x] `gomyadmin generate from-schema` — reads `schema.json` and produces resource files in one pass
 - [x] `pkg/server` — drop-in HTTP handler; mount an admin panel on any existing Go backend in 4 lines
 - [x] Stable `gomyadmin init` flow with migrations, seed data, and Next.js starter UI
+- [x] Public adapter interface for custom databases, ORMs, caches, sessions, auth, and storage
+- [x] Generic `pkg/cache` interface for Redis/Memcached/application-cache adapters
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e tests for the CRM demo
 

@@ -90,18 +90,28 @@ func (s *serverStore) resource(table string) (resourceMeta, bool) {
 	return r, ok
 }
 
+func (s *serverStore) HasResource(table string) bool {
+	_, ok := s.resource(table)
+	return ok
+}
+
 // Resources returns all resource metadata in stable table-name order.
 func (s *serverStore) Resources() []resourceMeta {
-	keys := make([]string, 0, len(s.resources))
-	for k := range s.resources {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
+	keys := sortedResourceKeys(s.resources)
 	out := make([]resourceMeta, 0, len(keys))
 	for _, k := range keys {
 		out = append(out, s.resources[k])
 	}
 	return out
+}
+
+func sortedResourceKeys(resources map[string]resourceMeta) []string {
+	keys := make([]string, 0, len(resources))
+	for k := range resources {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func (s *serverStore) List(ctx context.Context, table, tenantID, role, search, sortBy string, filters map[string]string, page, perPage int) ([]record, int, error) {

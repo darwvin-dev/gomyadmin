@@ -10,7 +10,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Stable `gomyadmin init` starter with `.gitignore`, backend migrations, demo seed data, and a richer Next.js admin UI.
+- Public `server.AdminStore` adapter interface for custom databases, ORMs, service layers, and cache-backed deployments.
+- `server.Config.SessionStore` for Redis, Memcached, SQL, or existing session/cache integrations.
+- `pkg/cache` with a minimal cache interface and in-memory implementation for adapter tests and local development.
 - `docs/cli-init.md` for the supported init flags and generated project layout.
+- `docs/drop-in-adapters.md` for mounting GoMyAdmin on existing Go backends.
 - `docs/migrations.md` for versioned schema changes and release note expectations.
 - Expanded `docs/auth.md` with session, CSRF, authorization, and production guidance.
 - `examples/postgres-crm` with a real PostgreSQL schema and seed data for introspection.
