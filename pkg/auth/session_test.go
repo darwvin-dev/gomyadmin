@@ -2,12 +2,14 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/darwvin-dev/gomyadmin/pkg/admin"
+	"github.com/darwvin-dev/gomyadmin/pkg/cache"
 )
 
 func TestMemorySessionStoreCreateAndGet(t *testing.T) {
@@ -156,5 +158,26 @@ func TestActorFromContextMissing(t *testing.T) {
 	_, ok := ActorFromContext(context.Background())
 	if ok {
 		t.Error("should not find actor in empty context")
+	}
+}
+
+func TestCacheSessionStoreRoundTrip(t *testing.T) {
+	store := NewCacheSessionStore(cache.NewMemory())
+	session, err := store.Create(context.Background(), admin.Actor{ID: "a1", Email: "a@example.com"}, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := store.Get(context.Background(), session.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Actor.Email != "a@example.com" {
+		t.Fatalf("email = %q", got.Actor.Email)
+	}
+	if err := store.Delete(context.Background(), session.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(context.Background(), session.ID); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("err = %v", err)
 	}
 }

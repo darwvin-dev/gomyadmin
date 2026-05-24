@@ -215,6 +215,9 @@ pkg/
   auth/                         Argon2id passwords, sessions, CSRF, rate limiting
   audit/                        structured audit event contracts + in-memory store
   adapters/sqlstore/             database/sql adapter for MySQL and SQLite-style drivers
+  adapters/gormstore/            GORM adapter using GORM's managed *sql.DB
+  adapters/mongostore/           MongoDB adapter for document-backed resources
+  adapters/redisstore/           Redis-backed admin sessions
   cache/                        tiny cache adapter contract + in-memory implementation
   filters/                      search / sort / filter query parsing
   logger/                       structured JSON logger (slog)
@@ -683,6 +686,7 @@ npm run build
 - [x] Public adapter interface for custom databases, ORMs, caches, sessions, auth, and storage
 - [x] Generic `pkg/cache` interface for Redis/Memcached/application-cache adapters
 - [x] `database/sql` adapter for MySQL and SQLite-style drivers
+- [x] GORM, MongoDB, and Redis session adapters
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e tests for the CRM demo
 

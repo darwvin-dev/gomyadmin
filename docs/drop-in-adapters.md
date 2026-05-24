@@ -154,6 +154,58 @@ store := sqlstore.SQLite(db, app)
 
 GoMyAdmin does not force a SQL driver. Your application imports the driver it already uses.
 
+## GORM
+
+Use `pkg/adapters/gormstore` when your app already owns a `*gorm.DB`:
+
+```go
+store, err := gormstore.MySQL(gormDB, app)
+if err != nil {
+	return err
+}
+
+adminServer, err := server.New(ctx, server.Config{
+	App:          app,
+	Store:        store,
+	SessionStore: sessions,
+	Authenticate: authenticateAdmin,
+})
+```
+
+The GORM adapter uses the `*sql.DB` managed by GORM, so it works with the same connection pool and driver configuration your app already uses.
+
+## MongoDB
+
+Use `pkg/adapters/mongostore` for document-backed resources:
+
+```go
+store := mongostore.New(mongoClient.Database("admin"), app)
+adminServer, err := server.New(ctx, server.Config{
+	App:          app,
+	Store:        store,
+	SessionStore: sessions,
+	Authenticate: authenticateAdmin,
+})
+```
+
+Resource table names map to MongoDB collection names. The adapter supports search, filters, sorting, pagination, CRUD, bulk delete, audit events, and file metadata.
+
+## Redis Sessions
+
+Use `pkg/adapters/redisstore` for Redis-backed admin sessions:
+
+```go
+client := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+sessions := redisstore.New(client)
+
+adminServer, err := server.New(ctx, server.Config{
+	App:          app,
+	Store:        store,
+	SessionStore: sessions,
+	Authenticate: authenticateAdmin,
+})
+```
+
 ## Compatibility Target
 
 The public adapter boundary is intentionally small:
