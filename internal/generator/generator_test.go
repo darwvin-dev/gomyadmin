@@ -118,6 +118,7 @@ func TestInitProjectCreatesStructure(t *testing.T) {
 
 	mustExist := []string{
 		"README.md",
+		".gitignore",
 		".env.example",
 		"docker-compose.yml",
 		"Makefile",
@@ -125,14 +126,38 @@ func TestInitProjectCreatesStructure(t *testing.T) {
 		filepath.Join("backend", "go.mod"),
 		filepath.Join("backend", "cmd", "server", "main.go"),
 		filepath.Join("backend", "internal", "admin", "resources.go"),
+		filepath.Join("backend", "internal", "db", "migrations", "001_init.sql"),
+		filepath.Join("backend", "internal", "db", "seeds", "001_demo.sql"),
 		filepath.Join("frontend", "Dockerfile"),
 		filepath.Join("frontend", "package.json"),
+		filepath.Join("frontend", "app", "layout.tsx"),
+		filepath.Join("frontend", "app", "globals.css"),
+		filepath.Join("frontend", "app", "admin", "dashboard", "page.tsx"),
+		filepath.Join("frontend", "app", "admin", "resources", "page.tsx"),
+		filepath.Join("frontend", "lib", "api.ts"),
 	}
 	for _, rel := range mustExist {
 		path := filepath.Join(name, rel)
 		if _, err := os.Stat(path); err != nil {
 			t.Errorf("expected file %s to exist: %v", rel, err)
 		}
+	}
+}
+
+func TestInitProjectDefaultsModuleToDarwvinDev(t *testing.T) {
+	dir := t.TempDir()
+	name := filepath.Join(dir, "Acme Admin")
+
+	if err := InitProject(InitOptions{Name: name}); err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(name, "backend", "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "module github.com/darwvin-dev/acme-admin/backend") {
+		t.Fatalf("unexpected module file:\n%s", string(data))
 	}
 }
 

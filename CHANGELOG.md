@@ -5,6 +5,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- Stable `gomyadmin init` starter with `.gitignore`, backend migrations, demo seed data, and a richer Next.js admin UI.
+- `docs/cli-init.md` for the supported init flags and generated project layout.
+- `docs/migrations.md` for versioned schema changes and release note expectations.
+- Expanded `docs/auth.md` with session, CSRF, authorization, and production guidance.
+- `examples/postgres-crm` with a real PostgreSQL schema and seed data for introspection.
+
+### Changed
+
+- Default generated module path now uses `github.com/darwvin-dev/<project>` when `--module` is omitted.
+- Generated frontend projects now include a dashboard, resources page, shared API helper, and production-oriented Next.js config.
+
+---
+
 ## [0.3.0] — 2026-05-24
 
 ### Added

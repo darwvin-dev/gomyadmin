@@ -227,6 +227,7 @@ templates/
 examples/
   basic/                        User, Role, Post resources
   crm/                          Lead, Customer, Deal, Task, Note with tenant scoping
+  postgres-crm/                 Real PostgreSQL schema + seed data for introspection
   saas/                         Organization, User, Subscription, Invoice, API Key
   sms-gateway/                  SMSMessage, Provider, Campaign, DeliveryReport
 ```
@@ -617,6 +618,15 @@ The demo backend includes users, customers, invoices, invoice items, payments, t
 
 ---
 
+## More Guides
+
+- [Authentication and sessions](docs/auth.md)
+- [Stable CLI init flow](docs/cli-init.md)
+- [Versioned migrations](docs/migrations.md)
+- [PostgreSQL CRM schema example](examples/postgres-crm/README.md)
+
+---
+
 ## Verification
 
 ```sh
@@ -664,6 +674,7 @@ npm run build
 - [x] S3 / R2 storage adapter
 - [x] `gomyadmin generate from-schema` — reads `schema.json` and produces resource files in one pass
 - [x] `pkg/server` — drop-in HTTP handler; mount an admin panel on any existing Go backend in 4 lines
+- [x] Stable `gomyadmin init` flow with migrations, seed data, and Next.js starter UI
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e tests for the CRM demo
 

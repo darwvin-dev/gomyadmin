@@ -25,7 +25,7 @@ func InitProject(options InitOptions) error {
 		return errors.New("project name is required")
 	}
 	if options.Module == "" {
-		options.Module = "github.com/darwvin/" + filepath.Base(options.Name)
+		options.Module = "github.com/darwvin-dev/" + moduleName(options.Name)
 	}
 	if options.Backend == "" {
 		options.Backend = "go"
@@ -52,7 +52,10 @@ func InitProject(options InitOptions) error {
 		return fmt.Errorf("unsupported ui %q", options.UI)
 	}
 
-	root := options.Name
+	root := filepath.Clean(options.Name)
+	if root == "." || root == string(filepath.Separator) {
+		return errors.New("project name must be a new directory, not the current directory")
+	}
 	files, err := projectFiles(options)
 	if err != nil {
 		return err
@@ -88,6 +91,7 @@ func projectFiles(options InitOptions) (map[string]string, error) {
 	files := map[string]string{}
 	for path, templateBody := range map[string]string{
 		"README.md":                           readmeTemplate,
+		".gitignore":                          gitignoreTemplate,
 		".env.example":                        envTemplate,
 		"docker-compose.yml":                  composeTemplate,
 		"Makefile":                            makefileTemplate,
@@ -95,13 +99,20 @@ func projectFiles(options InitOptions) (map[string]string, error) {
 		"backend/go.mod":                      backendGoModTemplate,
 		"backend/cmd/server/main.go":          backendMainTemplate,
 		"backend/internal/admin/resources.go": resourcesTemplate,
-		"frontend/Dockerfile":                 frontendDockerfileTemplate,
-		"frontend/package.json":               frontendPackageTemplate,
-		"frontend/next.config.js":             frontendNextConfigTemplate,
-		"frontend/tsconfig.json":              frontendTSConfigTemplate,
-		"frontend/next-env.d.ts":              frontendNextEnvTemplate,
-		"frontend/app/admin/page.tsx":         frontendPageTemplate,
-		"frontend/app/admin/login/page.tsx":   loginPageTemplate,
+		"backend/internal/db/migrations/001_init.sql": migrationTemplate,
+		"backend/internal/db/seeds/001_demo.sql":      seedTemplate,
+		"frontend/Dockerfile":                         frontendDockerfileTemplate,
+		"frontend/package.json":                       frontendPackageTemplate,
+		"frontend/next.config.js":                     frontendNextConfigTemplate,
+		"frontend/tsconfig.json":                      frontendTSConfigTemplate,
+		"frontend/next-env.d.ts":                      frontendNextEnvTemplate,
+		"frontend/app/layout.tsx":                     frontendLayoutTemplate,
+		"frontend/app/globals.css":                    frontendGlobalsTemplate,
+		"frontend/app/admin/page.tsx":                 frontendAdminRedirectTemplate,
+		"frontend/app/admin/dashboard/page.tsx":       frontendDashboardTemplate,
+		"frontend/app/admin/login/page.tsx":           loginPageTemplate,
+		"frontend/app/admin/resources/page.tsx":       frontendResourcesTemplate,
+		"frontend/lib/api.ts":                         frontendAPITemplate,
 	} {
 		rendered, renderErr := render(templateBody, options)
 		if renderErr != nil {
@@ -179,6 +190,7 @@ func writeFile(path, content string, overwrite bool) error {
 func render(body string, data any) (string, error) {
 	t, err := template.New("template").Funcs(template.FuncMap{
 		"lower": strings.ToLower,
+		"slug":  moduleName,
 	}).Parse(body)
 	if err != nil {
 		return "", err
@@ -204,6 +216,30 @@ func ensureNoConflicts(root string, files map[string]string) error {
 
 func resourceFileName(name string) string {
 	return strings.ReplaceAll(strings.ToLower(splitWords(name)), " ", "_") + "_resource.go"
+}
+
+func moduleName(name string) string {
+	base := filepath.Base(filepath.Clean(name))
+	base = strings.TrimSpace(strings.ToLower(base))
+	var b strings.Builder
+	lastDash := false
+	for _, r := range base {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			lastDash = false
+		case r == '-' || r == '_' || r == ' ':
+			if !lastDash && b.Len() > 0 {
+				b.WriteByte('-')
+				lastDash = true
+			}
+		}
+	}
+	slug := strings.Trim(b.String(), "-")
+	if slug == "" {
+		return "gomyadmin-app"
+	}
+	return slug
 }
 
 func pluralSnake(name string) string {
@@ -253,26 +289,49 @@ const readmeTemplate = `# {{.Name}}
 
 Generated with GoMyAdmin.
 
-Run:
+## Run locally
 
 ` + "```sh" + `
 cp .env.example .env
-docker compose up
+docker compose up --build
 ` + "```" + `
 
 Open http://localhost:3000/admin and login with admin@example.com / password.
 
-Notes:
+## Generated stack
 
-- Generated stack: Go backend + PostgreSQL + Next.js frontend
-- Supported flags today: --backend go --db postgres --frontend next --ui shadcn
-- Pagination uses per_page before limit when both are present
+- Go backend in ./backend
+- PostgreSQL schema in ./backend/internal/db/migrations
+- Demo seed data in ./backend/internal/db/seeds
+- Next.js admin UI in ./frontend
+- Session cookies and CSRF-ready auth endpoints
+
+## Common commands
+
+` + "```sh" + `
+make dev      # run the full stack
+make backend  # run only the Go backend
+make frontend # run only the Next.js frontend
+make test     # run backend tests
+` + "```" + `
+`
+
+const gitignoreTemplate = `.env
+.DS_Store
+node_modules/
+.next/
+dist/
+tmp/
+coverage/
+.gocache/
+*.log
 `
 
 const envTemplate = `DATABASE_URL=postgres://gomyadmin:gomyadmin@postgres:5432/gomyadmin?sslmode=disable
 GOMYADMIN_SESSION_SECRET=change-me-before-production
 GOMYADMIN_PUBLIC_URL=http://localhost:3000
 GOMYADMIN_BACKEND_URL=http://localhost:8080
+NEXT_PUBLIC_ADMIN_API_URL=http://localhost:8080
 `
 
 const composeTemplate = `services:
@@ -309,16 +368,28 @@ const composeTemplate = `services:
       - backend
 `
 
-const makefileTemplate = `.PHONY: demo dev test
+const makefileTemplate = `.PHONY: demo dev backend frontend test migrate seed
 
 demo:
 	docker compose up --build
 
 dev:
-	docker compose up postgres
+	docker compose up --build
+
+backend:
+	cd backend && go run ./cmd/server
+
+frontend:
+	cd frontend && npm run dev
 
 test:
 	cd backend && go test ./...
+
+migrate:
+	docker compose exec -T postgres psql -U gomyadmin -d gomyadmin -f /dev/stdin < backend/internal/db/migrations/001_init.sql
+
+seed:
+	docker compose exec -T postgres psql -U gomyadmin -d gomyadmin -f /dev/stdin < backend/internal/db/seeds/001_demo.sql
 `
 
 const backendDockerfileTemplate = `FROM golang:1.23 AS build
@@ -442,8 +513,75 @@ func RegisterResources(app *forge.App) {
 }
 `
 
+const migrationTemplate = `create table if not exists tenants (
+  id text primary key,
+  name text not null,
+  slug text not null unique,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists users (
+  id text primary key,
+  tenant_id text not null references tenants(id),
+  email text not null unique,
+  name text not null,
+  role text not null default 'admin',
+  status text not null default 'active',
+  password_hash text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists customers (
+  id text primary key,
+  tenant_id text not null references tenants(id),
+  name text not null,
+  email text not null,
+  status text not null default 'lead',
+  plan text not null default 'starter',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists invoices (
+  id text primary key,
+  tenant_id text not null references tenants(id),
+  customer_id text not null references customers(id) on delete cascade,
+  number text not null,
+  amount numeric(12,2) not null default 0,
+  status text not null default 'open',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists users_tenant_created_idx on users (tenant_id, created_at desc);
+create index if not exists customers_tenant_created_idx on customers (tenant_id, created_at desc);
+create index if not exists invoices_tenant_status_idx on invoices (tenant_id, status, created_at desc);
+`
+
+const seedTemplate = `insert into tenants (id, name, slug)
+values ('tenant_demo', 'Northstar CRM', 'northstar')
+on conflict (id) do nothing;
+
+insert into users (id, tenant_id, email, name, role, status, password_hash)
+values ('user_admin', 'tenant_demo', 'admin@example.com', 'Darwin Admin', 'admin', 'active', '')
+on conflict (id) do nothing;
+
+insert into customers (id, tenant_id, name, email, status, plan)
+values
+  ('cust_acme', 'tenant_demo', 'Acme Telecom', 'ops@acme.test', 'active', 'scale'),
+  ('cust_nova', 'tenant_demo', 'Nova Logistics', 'admin@nova.test', 'lead', 'starter')
+on conflict (id) do nothing;
+
+insert into invoices (id, tenant_id, customer_id, number, amount, status)
+values
+  ('inv_1001', 'tenant_demo', 'cust_acme', 'INV-1001', 4800.00, 'open'),
+  ('inv_1002', 'tenant_demo', 'cust_nova', 'INV-1002', 900.00, 'paid')
+on conflict (id) do nothing;
+`
+
 const frontendPackageTemplate = `{
-  "name": "{{.Name}}-frontend",
+  "name": "{{slug .Name}}-frontend",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -453,6 +591,7 @@ const frontendPackageTemplate = `{
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "lucide-react": "^0.511.0",
     "next": "15.3.2",
     "react": "19.1.0",
     "react-dom": "19.1.0"
@@ -467,7 +606,9 @@ const frontendPackageTemplate = `{
 `
 
 const frontendNextConfigTemplate = `/** @type {import('next').NextConfig} */
-const nextConfig = {}
+const nextConfig = {
+  output: "standalone"
+}
 
 module.exports = nextConfig
 `
@@ -486,7 +627,11 @@ const frontendTSConfigTemplate = `{
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
   "exclude": ["node_modules"]
@@ -497,16 +642,310 @@ const frontendNextEnvTemplate = `/// <reference types="next" />
 /// <reference types="next/image-types/global" />
 `
 
-const frontendPageTemplate = `export default function AdminPage() {
+const frontendLayoutTemplate = `import type { Metadata } from "next"
+import type { ReactNode } from "react"
+import "./globals.css"
+
+export const metadata: Metadata = {
+  title: "{{.Name}} Admin",
+  description: "Generated GoMyAdmin backoffice"
+}
+
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <main className="p-8 font-sans">
-      <h1>{{.Name}} Admin</h1>
-      <p>Production-ready backoffice generated by GoMyAdmin.</p>
-      <ul>
-        <li>Backend URL: {process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://localhost:8080"}</li>
-        <li>Default page: /admin</li>
-        <li>Login page: /admin/login</li>
-      </ul>
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+`
+
+const frontendGlobalsTemplate = `:root {
+  color-scheme: light;
+  --background: #f7f8fb;
+  --panel: #ffffff;
+  --foreground: #172033;
+  --muted: #eef2f6;
+  --border: #d8dee8;
+  --brand: #126b5f;
+  --brand-strong: #0b4d44;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.shell {
+  display: grid;
+  min-height: 100vh;
+  grid-template-columns: 260px 1fr;
+}
+
+.sidebar {
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  padding: 20px 14px;
+}
+
+.brand {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px;
+  font-weight: 700;
+}
+
+.brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--brand);
+  color: white;
+}
+
+.nav {
+  display: grid;
+  gap: 4px;
+  margin-top: 22px;
+}
+
+.nav a {
+  display: flex;
+  min-height: 38px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 8px 10px;
+  color: #536176;
+}
+
+.nav a:hover,
+.nav a:first-child {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+.content {
+  min-width: 0;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  background: rgba(247, 248, 251, 0.92);
+  padding: 0 24px;
+  backdrop-filter: blur(12px);
+}
+
+.page {
+  padding: 24px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.2;
+}
+
+.subtle {
+  color: #66758a;
+}
+
+.grid {
+  display: grid;
+  gap: 16px;
+}
+
+.stats {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 22px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(19, 32, 51, 0.06);
+}
+
+.mt {
+  margin-top: 16px;
+}
+
+.card-title {
+  margin: 0 0 8px;
+  color: #66758a;
+  font-size: 14px;
+}
+
+.metric {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border-bottom: 1px solid var(--border);
+  padding: 12px;
+  text-align: left;
+}
+
+.button {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--brand);
+  color: white;
+  padding: 0 14px;
+  font-weight: 600;
+}
+
+.login {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 24px;
+}
+
+.login form {
+  display: grid;
+  width: min(100%, 380px);
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 24px;
+}
+
+.input {
+  min-height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0 12px;
+}
+
+@media (max-width: 900px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar,
+  .page {
+    padding-inline: 16px;
+  }
+
+  .stats {
+    grid-template-columns: 1fr;
+  }
+}
+`
+
+const frontendAdminRedirectTemplate = `import { redirect } from "next/navigation"
+
+export default function AdminPage() {
+  redirect("/admin/dashboard")
+}
+`
+
+const frontendDashboardTemplate = `import Link from "next/link"
+import { ArrowUpRight, Database, FileText, ShieldCheck, Users } from "lucide-react"
+import { apiURL } from "@/lib/api"
+
+const stats = [
+  { label: "Resources", value: "4", icon: Database },
+  { label: "Admin users", value: "1", icon: Users },
+  { label: "Open invoices", value: "1", icon: FileText },
+  { label: "Session policy", value: "Secure", icon: ShieldCheck }
+]
+
+export default function DashboardPage() {
+  return (
+    <main className="shell">
+      <aside className="sidebar">
+        <Link className="brand" href="/admin/dashboard">
+          <span className="brand-mark">G</span>
+          <span>{{.Name}}</span>
+        </Link>
+        <nav className="nav">
+          <Link href="/admin/dashboard"><Database size={16} /> Dashboard</Link>
+          <Link href="/admin/resources"><FileText size={16} /> Resources</Link>
+          <Link href="/admin/login"><Users size={16} /> Login</Link>
+        </nav>
+      </aside>
+      <section className="content">
+        <header className="topbar">
+          <span className="subtle">Backend: {apiURL}</span>
+          <Link className="button" href="/admin/resources">Resources <ArrowUpRight size={16} /></Link>
+        </header>
+        <div className="page">
+          <h1 className="page-title">Operations dashboard</h1>
+          <p className="subtle">A focused starter for managing PostgreSQL-backed resources with Go.</p>
+          <section className="grid stats">
+            {stats.map((stat) => {
+              const Icon = stat.icon
+              return (
+                <article className="card" key={stat.label}>
+                  <p className="card-title">{stat.label}</p>
+                  <div className="metric">{stat.value}</div>
+                  <Icon size={18} color="#126b5f" />
+                </article>
+              )
+            })}
+          </section>
+          <section className="card mt">
+            <h2>Ready for real data</h2>
+            <p className="subtle">Run migrations and seeds, then connect resource list pages to /admin/api/resources.</p>
+          </section>
+        </div>
+      </section>
     </main>
   )
 }
@@ -514,15 +953,71 @@ const frontendPageTemplate = `export default function AdminPage() {
 
 const loginPageTemplate = `export default function LoginPage() {
   return (
-    <main className="grid min-h-screen place-items-center font-sans">
-      <form className="grid w-[360px] gap-3">
+    <main className="login">
+      <form>
         <h1>Sign in</h1>
-        <input placeholder="admin@example.com" />
-        <input placeholder="password" type="password" />
-        <button>Continue</button>
+        <p className="subtle">Use admin@example.com / password after replacing the demo password hash.</p>
+        <input className="input" placeholder="admin@example.com" />
+        <input className="input" placeholder="password" type="password" />
+        <button className="button">Continue</button>
       </form>
     </main>
   )
+}
+`
+
+const frontendResourcesTemplate = `import Link from "next/link"
+
+const resources = [
+  { name: "users", label: "Users", description: "Admin users, roles, and account status" },
+  { name: "customers", label: "Customers", description: "Tenant-scoped customer records" },
+  { name: "invoices", label: "Invoices", description: "Billing records and payment state" },
+  { name: "roles", label: "Roles", description: "Access control profiles" }
+]
+
+export default function ResourcesPage() {
+  return (
+    <main className="page">
+      <h1 className="page-title">Resources</h1>
+      <p className="subtle">Generated from the starter PostgreSQL schema.</p>
+      <section className="card mt">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resources.map((resource) => (
+              <tr key={resource.name}>
+                <td><Link href={"/admin/resources/" + resource.name}>{resource.label}</Link></td>
+                <td className="subtle">{resource.description}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </main>
+  )
+}
+`
+
+const frontendAPITemplate = `export const apiURL = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://localhost:8080"
+
+export async function adminRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(apiURL + path, {
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {})
+    },
+    ...init
+  })
+  if (!response.ok) {
+    throw new Error("Admin API request failed")
+  }
+  return response.json() as Promise<T>
 }
 `
 
