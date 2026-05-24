@@ -125,6 +125,35 @@ If you pass `DatabaseURL` or `Pool`, GoMyAdmin uses the built-in PostgreSQL adap
 
 If you pass `Store` without `SessionStore`, GoMyAdmin uses in-memory sessions. That is useful for local development, but production deployments should pass Redis, SQL, or another shared session store.
 
+## database/sql, MySQL, and SQLite
+
+The `pkg/adapters/sqlstore` package works with any `*sql.DB`.
+
+```go
+db, err := sql.Open("mysql", os.Getenv("DATABASE_URL"))
+if err != nil {
+	return err
+}
+
+store := sqlstore.MySQL(db, app)
+
+adminServer, err := server.New(ctx, server.Config{
+	App:          app,
+	Store:        store,
+	SessionStore: redisSessions,
+	Authenticate: authenticateAdmin,
+})
+```
+
+For SQLite:
+
+```go
+db, err := sql.Open("sqlite", "file:admin.db")
+store := sqlstore.SQLite(db, app)
+```
+
+GoMyAdmin does not force a SQL driver. Your application imports the driver it already uses.
+
 ## Compatibility Target
 
 The public adapter boundary is intentionally small:

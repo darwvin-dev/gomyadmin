@@ -18,7 +18,9 @@ import (
 	"github.com/darwvin-dev/gomyadmin/pkg/auth"
 )
 
-var errNotFound = errors.New("record not found")
+var ErrNotFound = errors.New("record not found")
+
+var errNotFound = ErrNotFound
 
 // internalSchema creates the audit log and file tables used internally by pkg/server.
 // The sessions table is created separately via auth.PGSessionStore.Migrate.

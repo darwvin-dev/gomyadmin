@@ -214,6 +214,7 @@ pkg/
   admin/                        resource metadata API (App, Resource, Field, Action, Policy)
   auth/                         Argon2id passwords, sessions, CSRF, rate limiting
   audit/                        structured audit event contracts + in-memory store
+  adapters/sqlstore/             database/sql adapter for MySQL and SQLite-style drivers
   cache/                        tiny cache adapter contract + in-memory implementation
   filters/                      search / sort / filter query parsing
   logger/                       structured JSON logger (slog)
@@ -681,6 +682,7 @@ npm run build
 - [x] Stable `gomyadmin init` flow with migrations, seed data, and Next.js starter UI
 - [x] Public adapter interface for custom databases, ORMs, caches, sessions, auth, and storage
 - [x] Generic `pkg/cache` interface for Redis/Memcached/application-cache adapters
+- [x] `database/sql` adapter for MySQL and SQLite-style drivers
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e tests for the CRM demo
 

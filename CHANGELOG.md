@@ -14,6 +14,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `server.Config.SessionStore` for Redis, Memcached, SQL, or existing session/cache integrations.
 - `pkg/cache` with a minimal cache interface and in-memory implementation for adapter tests and local development.
 - Bulk delete API at `POST /admin/api/{resource}/bulk-delete` with de-duplicated ids and audit logging.
+- `pkg/adapters/sqlstore` for `database/sql` integrations, including MySQL and SQLite-style drivers.
 - `docs/cli-init.md` for the supported init flags and generated project layout.
 - `docs/drop-in-adapters.md` for mounting GoMyAdmin on existing Go backends.
 - `docs/migrations.md` for versioned schema changes and release note expectations.
