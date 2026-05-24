@@ -1,0 +1,16 @@
+import { defineConfig, devices } from "@playwright/test"
+
+export default defineConfig({
+  testDir: ".",
+  timeout: 30_000,
+  use: {
+    baseURL: process.env.GOMYADMIN_E2E_BASE_URL ?? "http://localhost:3000",
+    trace: "on-first-retry"
+  },
+  projects: [
+    {
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] }
+    }
+  ]
+})
