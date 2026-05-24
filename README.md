@@ -221,6 +221,7 @@ pkg/
   cache/                        tiny cache adapter contract + in-memory implementation
   filters/                      search / sort / filter query parsing
   logger/                       structured JSON logger (slog)
+  migrate/                      SQL migration runner with checksum tracking
   openapi/                      OpenAPI 3.1 spec generation
   pagination/                   page + per_page parsing
   postgres/                     pgx connection pool + safe SQL query builder
@@ -630,6 +631,7 @@ The demo backend includes users, customers, invoices, invoice items, payments, t
 - [Authentication and sessions](docs/auth.md)
 - [Stable CLI init flow](docs/cli-init.md)
 - [Drop-in adapters for existing Go backends](docs/drop-in-adapters.md)
+- [Compatibility policy](docs/compatibility.md)
 - [Versioned migrations](docs/migrations.md)
 - [PostgreSQL CRM schema example](examples/postgres-crm/README.md)
 
@@ -687,6 +689,7 @@ npm run build
 - [x] Generic `pkg/cache` interface for Redis/Memcached/application-cache adapters
 - [x] `database/sql` adapter for MySQL and SQLite-style drivers
 - [x] GORM, MongoDB, and Redis session adapters
+- [x] Production-oriented SQL migration runner with checksum tracking
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e tests for the CRM demo
 

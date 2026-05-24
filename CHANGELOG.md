@@ -16,6 +16,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Bulk delete API at `POST /admin/api/{resource}/bulk-delete` with de-duplicated ids and audit logging.
 - `pkg/adapters/sqlstore` for `database/sql` integrations, including MySQL and SQLite-style drivers.
 - `pkg/adapters/gormstore`, `pkg/adapters/mongostore`, and `pkg/adapters/redisstore`.
+- `pkg/migrate` SQL migration runner with ordered files and checksum tracking.
+- Compatibility policy and examples for existing chi, Gin/Echo, and GORM apps.
 - `docs/cli-init.md` for the supported init flags and generated project layout.
 - `docs/drop-in-adapters.md` for mounting GoMyAdmin on existing Go backends.
 - `docs/migrations.md` for versioned schema changes and release note expectations.
