@@ -292,6 +292,60 @@ func (s *serverStore) Delete(ctx context.Context, table, id, tenantID, role stri
 	return oldRecord, err
 }
 
+func (s *serverStore) DeleteMany(ctx context.Context, table string, ids []string, tenantID, role string) ([]record, error) {
+	resource, ok := s.resource(table)
+	if !ok {
+		return nil, errNotFound
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback(ctx)
+		}
+	}()
+
+	deleted := make([]record, 0, len(ids))
+	for _, id := range ids {
+		args := []any{id}
+		where := fmt.Sprintf(" where %s = $1", quoteIdent(resource.PrimaryKey))
+		if resource.TenantKey != "" && role != "super_admin" {
+			args = append(args, tenantID)
+			where += fmt.Sprintf(" and %s = $%d", quoteIdent(resource.TenantKey), len(args))
+		}
+		rows, queryErr := tx.Query(ctx, "select "+selectCols(resource)+" from "+quoteIdent(resource.Table)+where+" limit 1", args...)
+		if queryErr != nil {
+			err = queryErr
+			return nil, err
+		}
+		records, scanErr := scanRows(rows, resource)
+		rows.Close()
+		if scanErr != nil {
+			err = scanErr
+			return nil, err
+		}
+		if len(records) == 0 {
+			err = errNotFound
+			return nil, err
+		}
+		if _, execErr := tx.Exec(ctx, "delete from "+quoteIdent(resource.Table)+where, args...); execErr != nil {
+			err = execErr
+			return nil, err
+		}
+		deleted = append(deleted, records[0])
+	}
+	err = tx.Commit(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return deleted, nil
+}
+
 func (s *serverStore) RecordAudit(ctx context.Context, event auditEvent) {
 	if event.CreatedAt.IsZero() {
 		event.CreatedAt = time.Now().UTC()

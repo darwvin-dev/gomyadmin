@@ -48,6 +48,7 @@ func (s *AdminServer) buildRouter() http.Handler {
 			r.Get("/", s.handleList)
 			r.Post("/", s.handleCreate)
 			r.Get("/export", s.handleExport)
+			r.Post("/bulk-delete", s.handleBulkDelete)
 			r.Post("/bulk-actions/{action}", s.handleBulkAction)
 			r.Get("/{id}", s.handleGet)
 			r.Patch("/{id}", s.handleUpdate)
@@ -238,6 +239,39 @@ func (s *AdminServer) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	s.emitAudit(r, actor, "delete", table, id, old, nil)
 	admin.WriteJSON(w, http.StatusOK, reqID(r), map[string]any{"deleted": true}, nil)
+}
+
+func (s *AdminServer) handleBulkDelete(w http.ResponseWriter, r *http.Request) {
+	table := chi.URLParam(r, "resource")
+	if !s.can(r, table+".delete") {
+		s.deny(w, r, table)
+		return
+	}
+	var input struct {
+		IDs []string `json:"ids"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		admin.WriteError(w, http.StatusBadRequest, reqID(r), "INVALID_JSON", "Invalid JSON body", nil)
+		return
+	}
+	ids := cleanIDs(input.IDs)
+	if len(ids) == 0 {
+		admin.WriteError(w, http.StatusBadRequest, reqID(r), "EMPTY_SELECTION", "At least one record id is required", nil)
+		return
+	}
+	actor, _ := auth.ActorFromContext(r.Context())
+	oldRecords, err := s.store.DeleteMany(r.Context(), table, ids, actor.TenantID, firstRole(actor))
+	if errors.Is(err, errNotFound) {
+		admin.WriteError(w, http.StatusNotFound, reqID(r), "NOT_FOUND", "Resource or record not found", nil)
+		return
+	}
+	if err != nil {
+		s.log.Error("bulk_delete", "table", table, "err", err)
+		admin.WriteError(w, http.StatusInternalServerError, reqID(r), "BULK_DELETE_FAILED", "Could not delete records", nil)
+		return
+	}
+	s.emitAudit(r, actor, "bulk_delete", table, "", map[string]any{"records": oldRecords}, nil)
+	admin.WriteJSON(w, http.StatusOK, reqID(r), map[string]any{"deleted": len(oldRecords), "ids": ids}, nil)
 }
 
 // Action handlers
@@ -563,4 +597,18 @@ func parseFilters(r *http.Request) map[string]string {
 		filters[field] = values[0]
 	}
 	return filters
+}
+
+func cleanIDs(ids []string) []string {
+	seen := map[string]bool{}
+	cleaned := make([]string, 0, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" || seen[id] {
+			continue
+		}
+		seen[id] = true
+		cleaned = append(cleaned, id)
+	}
+	return cleaned
 }

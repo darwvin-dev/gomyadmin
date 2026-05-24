@@ -91,6 +91,7 @@ Every method returns the same type, so you chain as far as you like and your IDE
 | **Search, sort, filter** | Per-field flags; parameterized SQL, injection-safe |
 | **Pagination** | `page` + `per_page`, configurable max |
 | **Custom actions** | Any handler function; optional confirmation dialog, reason field, input form, timeout, permission |
+| **Bulk operations** | Bulk actions and bulk delete endpoints with audit events |
 | **RBAC** | 5 built-in roles (super_admin → viewer); wildcard permission matching |
 | **Audit log** | Structured events with old/new values, actor, tenant, IP, request ID |
 | **Multi-tenancy** | Per-resource `TenantScoped("column")` with pluggable resolver |

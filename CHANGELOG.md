@@ -13,6 +13,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Public `server.AdminStore` adapter interface for custom databases, ORMs, service layers, and cache-backed deployments.
 - `server.Config.SessionStore` for Redis, Memcached, SQL, or existing session/cache integrations.
 - `pkg/cache` with a minimal cache interface and in-memory implementation for adapter tests and local development.
+- Bulk delete API at `POST /admin/api/{resource}/bulk-delete` with de-duplicated ids and audit logging.
 - `docs/cli-init.md` for the supported init flags and generated project layout.
 - `docs/drop-in-adapters.md` for mounting GoMyAdmin on existing Go backends.
 - `docs/migrations.md` for versioned schema changes and release note expectations.

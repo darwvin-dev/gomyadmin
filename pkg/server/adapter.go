@@ -20,6 +20,7 @@ type AdminStore interface {
 	Create(ctx context.Context, table, tenantID string, input Record) (Record, error)
 	Update(ctx context.Context, table, id, tenantID, role string, input Record) (oldRecord Record, newRecord Record, err error)
 	Delete(ctx context.Context, table, id, tenantID, role string) (oldRecord Record, err error)
+	DeleteMany(ctx context.Context, table string, ids []string, tenantID, role string) (oldRecords []Record, err error)
 	RecordAudit(ctx context.Context, event AuditEvent)
 	Audit(ctx context.Context, tenantID, role string) ([]AuditEvent, error)
 	AddFile(ctx context.Context, record Record) error
