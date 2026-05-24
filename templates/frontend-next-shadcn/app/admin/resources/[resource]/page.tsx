@@ -1,6 +1,6 @@
 "use client"
 
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Plus } from "lucide-react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
@@ -14,7 +14,9 @@ export default function ResourcePage() {
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
   const [sort, setSort] = useState("-created_at")
+  const [filter, setFilter] = useState<{ field: string; operator: string; value: string }>({ field: "", operator: "eq", value: "" })
   const [, startTransition] = useTransition()
+  const queryClient = useQueryClient()
   const resources = useQuery({ queryKey: ["resources"], queryFn: async () => (await api.resources()).data ?? [] })
   const meta = resources.data?.find((resource) => resource.name === params.resource)
   const query = useMemo(() => {
@@ -23,12 +25,20 @@ export default function ResourcePage() {
     values.set("per_page", "25")
     values.set("sort", sort)
     if (search) values.set("q", search)
+    if (filter.field && filter.value) values.set(`filter[${filter.field}][${filter.operator}]`, filter.value)
     return values
-  }, [page, search, sort])
+  }, [filter, page, search, sort])
   const records = useQuery({
     queryKey: ["resource", params.resource, query.toString()],
     enabled: Boolean(meta),
     queryFn: async () => api.list(params.resource, query)
+  })
+  const bulkDelete = useMutation({
+    mutationFn: async (ids: string[]) => api.bulkDelete(params.resource, ids),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["resource", params.resource] })
+      await queryClient.invalidateQueries({ queryKey: ["audit"] })
+    }
   })
 
   if (!meta) {
@@ -67,6 +77,11 @@ export default function ResourcePage() {
         onRefresh={() => records.refetch()}
         onSearch={(value) => startTransition(() => setSearch(value))}
         onSort={setSort}
+        onFilter={(field, operator, value) => {
+          setPage(1)
+          setFilter({ field, operator, value })
+        }}
+        onBulkDelete={(ids) => bulkDelete.mutate(ids)}
       />
     </div>
   )

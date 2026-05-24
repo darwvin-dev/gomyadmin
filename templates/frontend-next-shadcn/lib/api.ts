@@ -86,6 +86,12 @@ export const api = {
   remove(resource: string, id: string) {
     return request<{ deleted: boolean }>(`/admin/api/${resource}/${id}`, { method: "DELETE" })
   },
+  bulkDelete(resource: string, ids: string[]) {
+    return request<{ deleted: number; ids: string[] }>(`/admin/api/${resource}/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids })
+    })
+  },
   action(resource: string, id: string, action: string, payload: RecordRow) {
     return request<{ message: string }>(`/admin/api/${resource}/${id}/actions/${action}`, {
       method: "POST",
