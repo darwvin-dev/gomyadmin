@@ -255,11 +255,18 @@ func (s *Store) Audit(ctx context.Context, tenantID, role string) ([]server.Audi
 	for rows.Next() {
 		var event server.AuditEvent
 		var oldValues, newValues string
-		if err := rows.Scan(&event.ID, &event.ActorID, &event.ActorEmail, &event.TenantID, &event.Action, &event.Resource, &event.ResourceID, &oldValues, &newValues, &event.IPAddress, &event.UserAgent, &event.RequestID, &event.CreatedAt); err != nil {
+		var createdAt any
+		if err := rows.Scan(&event.ID, &event.ActorID, &event.ActorEmail, &event.TenantID, &event.Action, &event.Resource, &event.ResourceID, &oldValues, &newValues, &event.IPAddress, &event.UserAgent, &event.RequestID, &createdAt); err != nil {
 			return nil, err
 		}
 		_ = json.Unmarshal([]byte(oldValues), &event.OldValues)
 		_ = json.Unmarshal([]byte(newValues), &event.NewValues)
+		switch v := createdAt.(type) {
+		case time.Time:
+			event.CreatedAt = v
+		case string:
+			event.CreatedAt, _ = time.Parse(time.RFC3339Nano, v)
+		}
 		events = append(events, event)
 	}
 	return events, rows.Err()
