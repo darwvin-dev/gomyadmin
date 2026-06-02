@@ -5,6 +5,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.5.0] — 2026-06-02
+
+### Added
+
+- Integration test suite in `tests/integration/` (`//go:build integration`) for `pkg/server` (full CRUD login→logout), `pkg/migrate` (idempotency, checksum validation), and CLI binary (version, doctor, init, introspect)
+- CI integration test step running against the existing PostgreSQL service
+- CI coverage threshold: PRs fail if total coverage drops below 90%
+
+### Changed
+
+- `pkg/server/handler.go` split into focused files: `handler_auth.go`, `handler_crud.go`, `handler_files.go`, `handler_actions.go`, `handler_audit.go`, `handler_middleware.go`
+- `internal/introspect`: introduced `querier` interface and `loadSchema` for testability without live DB
+- `pkg/migrate` error messages now include migration version number
+
+### Fixed
+
+- **Breaking:** `newID()` in `pkg/adapters/sqlstore` now uses `crypto/rand` instead of `time.Now().UnixNano()` — IDs are now 16-character hex strings; eliminates collision risk under rapid record creation
+- `pkg/adapters/sqlstore.Audit()` now correctly scans `created_at` from both PostgreSQL (time.Time) and SQLite (string) drivers
+
+### Coverage
+
+All packages brought to ≥85%: `pkg/migrate` (85%), `internal/cli` (74%), `internal/introspect` (95%), `pkg/tenant` (100%), `pkg/pagination` (100%), `pkg/server` (37% unit + integration).
+
+---
+
 ## [0.4.0] — 2026-06-02
 
 ### Added
@@ -146,6 +171,7 @@ Initial public release.
 
 ---
 
+[0.5.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.5.0
 [0.4.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.4.0
 [0.3.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.3.0
 [0.2.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.2.0
