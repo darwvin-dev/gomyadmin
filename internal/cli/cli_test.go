@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/darwvin-dev/gomyadmin/pkg/admin"
 )
 
 func TestUnknownCommandReturnsError(t *testing.T) {
@@ -125,3 +127,171 @@ func TestColumnToFieldName(t *testing.T) {
 		}
 	}
 }
+
+func TestRunNoArgsReturnsZero(t *testing.T) {
+	if code := Run([]string{}); code != 0 {
+		t.Fatalf("empty args: expected 0, got %d", code)
+	}
+}
+
+func TestRunVersionPrintsAndReturnsZero(t *testing.T) {
+	if code := Run([]string{"version"}); code != 0 {
+		t.Fatalf("version: expected 0, got %d", code)
+	}
+}
+
+func TestRunHelpReturnsZero(t *testing.T) {
+	for _, arg := range []string{"-h", "--help", "help"} {
+		if code := Run([]string{arg}); code != 0 {
+			t.Fatalf("help(%q): expected 0, got %d", arg, code)
+		}
+	}
+}
+
+func TestRunDoctorReturnsZeroOrOne(t *testing.T) {
+	code := Run([]string{"doctor"})
+	if code != 0 && code != 1 {
+		t.Fatalf("doctor: expected 0 or 1, got %d", code)
+	}
+}
+
+func TestRunMessageCommandsReturnZero(t *testing.T) {
+	for _, cmd := range []string{"migrate", "seed"} {
+		if code := Run([]string{cmd}); code != 0 {
+			t.Fatalf("%s: expected 0, got %d", cmd, code)
+		}
+	}
+}
+
+func TestRunGenerateNoSubcommandReturnsTwo(t *testing.T) {
+	if code := Run([]string{"generate"}); code != 2 {
+		t.Fatalf("generate (no sub): expected 2, got %d", code)
+	}
+}
+
+func TestRunGenerateResourceNoNameReturnsTwo(t *testing.T) {
+	if code := Run([]string{"generate", "resource"}); code != 2 {
+		t.Fatalf("generate resource (no name): expected 2, got %d", code)
+	}
+}
+
+func TestRunGenerateResourceCreatesFile(t *testing.T) {
+	dir := t.TempDir()
+	orig, _ := os.Getwd()
+	_ = os.Chdir(dir)
+	defer func() { _ = os.Chdir(orig) }()
+
+	code := Run([]string{"generate", "resource", "Product", "--table", "products"})
+	if code != 0 {
+		t.Fatalf("generate resource: expected 0, got %d", code)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "backend/internal/admin/product_resource.go")); err != nil {
+		t.Fatalf("resource file not created: %v", err)
+	}
+}
+
+func TestRunInitNoNameReturnsTwo(t *testing.T) {
+	if code := Run([]string{"init"}); code != 2 {
+		t.Fatalf("init (no name): expected 2, got %d", code)
+	}
+}
+
+func TestRunInitCreatesProject(t *testing.T) {
+	dir := t.TempDir()
+	projectName := filepath.Join(dir, "my-admin")
+	code := Run([]string{"init", projectName})
+	if code != 0 {
+		t.Fatalf("init: expected 0, got %d", code)
+	}
+	if _, err := os.Stat(filepath.Join(projectName, "docker-compose.yml")); err != nil {
+		t.Fatalf("docker-compose.yml not created: %v", err)
+	}
+}
+
+func TestRunIntrospectNoURLReturnsTwo(t *testing.T) {
+	orig := os.Getenv("DATABASE_URL")
+	_ = os.Unsetenv("DATABASE_URL")
+	defer func() {
+		if orig != "" {
+			_ = os.Setenv("DATABASE_URL", orig)
+		}
+	}()
+	if code := Run([]string{"introspect"}); code != 2 {
+		t.Fatalf("introspect (no URL): expected 2, got %d", code)
+	}
+}
+
+func TestRunGenerateUnknownTargetReturnsTwo(t *testing.T) {
+	if code := Run([]string{"generate", "unknown-target"}); code != 2 {
+		t.Fatalf("generate unknown: expected 2, got %d", code)
+	}
+}
+
+func TestRunOpenAPIGeneratesFile(t *testing.T) {
+	dir := t.TempDir()
+	out := filepath.Join(dir, "openapi.json")
+	code := Run([]string{"openapi", "generate", "--out", out})
+	if code != 0 {
+		t.Fatalf("openapi generate: expected 0, got %d", code)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("openapi.json not created: %v", err)
+	}
+}
+
+func TestRunGenerateFrontendBackendAll(t *testing.T) {
+	for _, target := range []string{"frontend", "backend", "all"} {
+		if code := Run([]string{"generate", target}); code != 0 {
+			t.Fatalf("generate %s: expected 0, got %d", target, code)
+		}
+	}
+}
+
+func TestRunGenerateActionPolicy(t *testing.T) {
+	for _, target := range []string{"action", "policy"} {
+		if code := Run([]string{"generate", target}); code != 0 {
+			t.Fatalf("generate %s: expected 0, got %d", target, code)
+		}
+	}
+}
+
+func TestSingularize(t *testing.T) {
+	cases := []struct{ in, want string }{
+		{"users", "user"},
+		{"categories", "category"},
+		{"boxes", "box"},
+		{"classes", "class"},
+		{"buses", "bus"},
+		{"passes", "pass"},
+		{"person", "person"},
+		{"ss", "ss"},
+	}
+	for _, c := range cases {
+		if got := singularize(c.in); got != c.want {
+			t.Errorf("singularize(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestFieldTypeMethodName(t *testing.T) {
+	cases := []struct {
+		ft   admin.FieldType
+		want string
+	}{
+		{admin.FieldDateTime, "DateTime"},
+		{admin.FieldUUID, "UUID"},
+		{admin.FieldJSON, "JSON"},
+		{admin.FieldJSONB, "JSONB"},
+		{admin.FieldMoney, "Decimal"},
+		{admin.FieldString, "String"},
+		{admin.FieldEmail, "Email"},
+		{admin.FieldBoolean, "Boolean"},
+		{admin.FieldInteger, "Integer"},
+	}
+	for _, c := range cases {
+		if got := fieldTypeMethodName(c.ft); got != c.want {
+			t.Errorf("fieldTypeMethodName(%q) = %q, want %q", c.ft, got, c.want)
+		}
+	}
+}
+
