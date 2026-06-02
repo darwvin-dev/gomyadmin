@@ -133,3 +133,72 @@ func TestIsLikelyPrimaryKey(t *testing.T) {
 		t.Error("name should not be primary key")
 	}
 }
+
+func TestIsLikelyTimestamp(t *testing.T) {
+	yes := []Column{
+		{DataType: "timestamp"},
+		{DataType: "timestamp with time zone"},
+		{DataType: "timestamptz"},
+		{DataType: "timetz"},
+	}
+	no := []Column{
+		{DataType: "text"},
+		{DataType: "integer"},
+		{DataType: "date"},
+	}
+	for _, col := range yes {
+		if !IsLikelyTimestamp(col) {
+			t.Errorf("%q should be likely timestamp", col.DataType)
+		}
+	}
+	for _, col := range no {
+		if IsLikelyTimestamp(col) {
+			t.Errorf("%q should not be likely timestamp", col.DataType)
+		}
+	}
+}
+
+func TestIsLikelyEmailEdgeCases(t *testing.T) {
+	if !IsLikelyEmail(Column{Name: "contact_email"}) {
+		t.Error("contact_email should be likely email")
+	}
+	if IsLikelyEmail(Column{Name: "name"}) {
+		t.Error("name should not be likely email")
+	}
+}
+
+func TestIsLikelyPasswordEdgeCases(t *testing.T) {
+	for _, name := range []string{"password", "password_hash", "hashed_password", "user_password"} {
+		if !IsLikelyPassword(Column{Name: name}) {
+			t.Errorf("%q should be likely password", name)
+		}
+	}
+}
+
+func TestSuggestFieldTypeForUUID(t *testing.T) {
+	col := Column{Name: "record_uuid", DataType: "uuid"}
+	if got := SuggestFieldType(col); got != admin.FieldUUID {
+		t.Errorf("got %q, want uuid", got)
+	}
+}
+
+func TestIsLikelyPrimaryKeyCompoundNames(t *testing.T) {
+	if !IsLikelyPrimaryKey(Column{Name: "record_id", IsIdentity: true}) {
+		t.Error("record_id with IsIdentity should be likely PK")
+	}
+	if IsLikelyPrimaryKey(Column{Name: "user_id", IsIdentity: false}) {
+		t.Error("user_id without IsIdentity should not be PK")
+	}
+}
+
+func TestColumnToFieldTypeBpchar(t *testing.T) {
+	if got := ColumnToFieldType("bpchar"); got != admin.FieldString {
+		t.Errorf("bpchar → %q, want string", got)
+	}
+}
+
+func TestColumnToFieldTypeTimetz(t *testing.T) {
+	if got := ColumnToFieldType("timetz"); got != admin.FieldTime {
+		t.Errorf("timetz → %q, want time", got)
+	}
+}
