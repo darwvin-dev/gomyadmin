@@ -3,7 +3,9 @@ package sqlstore
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -523,7 +525,9 @@ func firstTime(value any) time.Time {
 }
 
 func newID() string {
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 var _ server.AdminStore = (*Store)(nil)

@@ -374,3 +374,17 @@ func TestSQLiteDialectMySQL(t *testing.T) {
 		t.Fatal("expected non-nil store for MySQL dialect")
 	}
 }
+
+func TestNewIDIsUnique(t *testing.T) {
+	seen := map[string]bool{}
+	for i := 0; i < 1000; i++ {
+		id := newID()
+		if seen[id] {
+			t.Fatalf("duplicate ID generated: %s", id)
+		}
+		seen[id] = true
+		if len(id) != 16 {
+			t.Fatalf("expected 16-char hex id, got %q (len %d)", id, len(id))
+		}
+	}
+}
