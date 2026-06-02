@@ -46,3 +46,15 @@ jobs:
         env:
           DATABASE_URL: postgres://gomyadmin:gomyadmin@localhost:5432/gomyadmin?sslmode=disable
         run: go test ./...
+
+      - name: Integration tests
+        env:
+          DATABASE_URL: postgres://gomyadmin:gomyadmin@localhost:5432/gomyadmin?sslmode=disable
+        run: go test -tags integration ./tests/integration/... -timeout 120s
+
+      - name: Check coverage
+        env:
+          DATABASE_URL: postgres://gomyadmin:gomyadmin@localhost:5432/gomyadmin?sslmode=disable
+        run: |
+          go test ./... -coverprofile=coverage.out -timeout 120s
+          go tool cover -func=coverage.out | awk '/total:/ {pct=$3+0; if (pct < 90) { print "Coverage " $3 " is below 90%"; exit 1 } else { print "Coverage " $3 " OK" }}'
