@@ -150,6 +150,13 @@ func cookie(sessionID string) *http.Cookie {
 	return &http.Cookie{Name: "gomyadmin_session", Value: sessionID}
 }
 
+func TestNormalizeScannedFormatsBinaryUUID(t *testing.T) {
+	got := normalizeScanned([16]byte{0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x90, 0xab, 0xcd, 0xef})
+	if got != "12345678-90ab-cdef-1234-567890abcdef" {
+		t.Fatalf("normalizeScanned UUID = %#v", got)
+	}
+}
+
 func do(t *testing.T, srv *AdminServer, method, path string, body any, sessionID string) *httptest.ResponseRecorder {
 	t.Helper()
 	var bodyReader *bytes.Reader

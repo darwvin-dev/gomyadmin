@@ -612,10 +612,22 @@ func normalizeValue(value any) any {
 }
 
 func normalizeScanned(value any) any {
-	if b, ok := value.([]byte); ok {
+	switch v := value.(type) {
+	case [16]byte:
+		return formatUUID(v[:])
+	case []byte:
+		b := v
+		return string(b)
+	default:
+		return value
+	}
+}
+
+func formatUUID(b []byte) string {
+	if len(b) != 16 {
 		return string(b)
 	}
-	return value
+	return fmt.Sprintf("%08x-%04x-%04x-%04x-%012x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
 func cloneRecord(r record) record {
