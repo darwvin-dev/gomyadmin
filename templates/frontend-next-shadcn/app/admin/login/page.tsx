@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { ArrowRight, LockKeyhole } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { api } from "@/lib/api"
+import { api, type OAuthProvider } from "@/lib/api"
 
 const schema = z.object({
   email: z.string().email(),
@@ -18,10 +19,15 @@ type LoginInput = z.infer<typeof schema>
 
 export default function LoginPage() {
   const router = useRouter()
+  const [providers, setProviders] = useState<OAuthProvider[]>([])
   const form = useForm<LoginInput>({
     resolver: zodResolver(schema),
     defaultValues: { email: "admin@example.com", password: "password" }
   })
+
+  useEffect(() => {
+    api.authProviders().then((response) => setProviders(response.data ?? [])).catch(() => setProviders([]))
+  }, [])
 
   return (
     <main className="grid min-h-screen place-items-center bg-background px-4">
@@ -48,6 +54,15 @@ export default function LoginPage() {
             Continue
             <ArrowRight className="h-4 w-4" />
           </Button>
+          {providers.length > 0 ? (
+            <div className="mt-2 grid gap-2">
+              {providers.map((provider) => (
+                <Button key={provider.name} type="button" variant="outline" onClick={() => window.location.assign(api.oauthStartURL(provider.name))}>
+                  Continue with {provider.label}
+                </Button>
+              ))}
+            </div>
+          ) : null}
         </div>
       </form>
     </main>

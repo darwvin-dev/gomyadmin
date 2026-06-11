@@ -1,11 +1,12 @@
 FROM node:24-bookworm AS deps
 WORKDIR /app
-COPY templates/frontend-next-shadcn/package.json templates/frontend-next-shadcn/package-lock.json ./
-RUN npm ci
+RUN if ! command -v yarn >/dev/null 2>&1; then npm install -g yarn@1.22.22; fi && yarn --version
+COPY templates/frontend-next-shadcn/package.json templates/frontend-next-shadcn/yarn.lock ./
+RUN yarn install --frozen-lockfile
 
 FROM deps AS builder
 COPY templates/frontend-next-shadcn .
-RUN npm run build
+RUN yarn run build
 
 FROM node:24-bookworm AS runner
 WORKDIR /app
@@ -15,4 +16,4 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["yarn", "run", "start"]

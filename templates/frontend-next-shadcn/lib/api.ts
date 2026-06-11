@@ -39,6 +39,21 @@ export type ResourceMeta = {
 }
 
 export type RecordRow = Record<string, unknown>
+export type OAuthProvider = {
+  name: string
+  label: string
+  start_url: string
+}
+export type APIKeyRow = {
+  id: string
+  name: string
+  prefix: string
+  scopes: string[]
+  expires_at?: string | null
+  last_used_at?: string | null
+  revoked_at?: string | null
+  created_at: string
+}
 
 const baseURL = process.env.NEXT_PUBLIC_ADMIN_API_URL ?? "http://localhost:8080"
 
@@ -65,8 +80,28 @@ export const api = {
       body: JSON.stringify({ email, password })
     })
   },
+  authProviders() {
+    return request<OAuthProvider[]>("/admin/api/auth/providers")
+  },
+  oauthStartURL(provider: string) {
+    return `${baseURL}/admin/api/auth/oauth/${provider}/start`
+  },
   me() {
     return request<{ user: RecordRow; tenants: RecordRow[] }>("/admin/api/me")
+  },
+  apiKeys() {
+    return request<APIKeyRow[]>("/admin/api/auth/api-keys")
+  },
+  createAPIKey(payload: { name: string; scopes: string[]; expires_in?: string }) {
+    return request<{ key: APIKeyRow; secret: string }>("/admin/api/auth/api-keys", {
+      method: "POST",
+      body: JSON.stringify(payload)
+    })
+  },
+  revokeAPIKey(id: string) {
+    return request<{ ok: boolean }>(`/admin/api/auth/api-keys/${id}/revoke`, {
+      method: "POST"
+    })
   },
   resources() {
     return request<ResourceMeta[]>("/admin/api/resources")

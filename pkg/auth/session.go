@@ -138,9 +138,13 @@ func (m *SessionManager) Middleware(next http.Handler) http.Handler {
 			admin.WriteError(w, http.StatusUnauthorized, requestID(r), "UNAUTHENTICATED", "Authentication required", nil)
 			return
 		}
-		ctx := context.WithValue(r.Context(), actorKey, session.Actor)
+		ctx := ContextWithActor(r.Context(), session.Actor)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func ContextWithActor(ctx context.Context, actor admin.Actor) context.Context {
+	return context.WithValue(ctx, actorKey, actor)
 }
 
 func ActorFromContext(ctx context.Context) (admin.Actor, bool) {

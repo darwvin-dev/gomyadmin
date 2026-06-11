@@ -32,6 +32,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -63,6 +64,11 @@ type Config struct {
 	// omitted with Store-only configuration, an in-memory session store is used.
 	SessionStore auth.SessionStore
 
+	// APIKeys enables API key authentication and management endpoints.
+	// When omitted with DatabaseURL/Pool, a PostgreSQL-backed implementation is used.
+	// When omitted with Store-only configuration, API key endpoints remain disabled.
+	APIKeys auth.APIKeyManager
+
 	// App is the resource registry built with admin.New and app.Resource().
 	// An empty App is created automatically when nil.
 	App *admin.App
@@ -71,6 +77,13 @@ type Config struct {
 	// Return (actor, true, nil) on success or (zero, false, nil) on bad credentials.
 	// When nil, all login attempts return 401 Unauthorized.
 	Authenticate func(ctx context.Context, email, password string) (admin.Actor, bool, error)
+
+	// OAuthProviders enables OAuth login flows keyed by provider name (for example "google").
+	OAuthProviders map[string]auth.OAuthProvider
+
+	// ResolveOAuthActor maps an OAuth identity to an admin.Actor.
+	// Return (actor, true, nil) on success, (zero, false, nil) to deny login.
+	ResolveOAuthActor func(ctx context.Context, provider string, identity auth.OAuthIdentity) (admin.Actor, bool, error)
 
 	// Tenants is an optional callback that returns the list of tenants the actor
 	// may switch to. The response appears in the "me" endpoint under "tenants".
@@ -94,6 +107,18 @@ type Config struct {
 	// Defaults to GOMYADMIN_PUBLIC_URL env var, then "http://localhost:8080".
 	PublicURL string
 
+	// SigningSecret is used to sign OAuth state cookies.
+	// Defaults to GOMYADMIN_SESSION_SECRET, then a development fallback.
+	SigningSecret string
+
+	// OAuthSuccessURL is where OAuth callbacks redirect after a successful login.
+	// Defaults to "/admin/dashboard".
+	OAuthSuccessURL string
+
+	// OAuthFailureURL is where OAuth callbacks redirect after a failed login.
+	// Defaults to "/admin/login".
+	OAuthFailureURL string
+
 	// ownPool is true when New() created the pool; Close() will close it.
 	ownPool bool
 }
@@ -106,6 +131,8 @@ type AdminServer struct {
 	app      *admin.App
 	store    AdminStore
 	sessions *auth.SessionManager
+	apiKeys  auth.APIKeyManager
+	oauth    auth.OAuthStateManager
 	uploads  storage.Storage
 }
 
@@ -132,6 +159,15 @@ func New(ctx context.Context, cfg Config) (*AdminServer, error) {
 	}
 	if cfg.PublicURL == "" {
 		cfg.PublicURL = envOr("GOMYADMIN_PUBLIC_URL", "http://localhost:8080")
+	}
+	if cfg.SigningSecret == "" {
+		cfg.SigningSecret = envOr("GOMYADMIN_SESSION_SECRET", "gomyadmin-dev-secret")
+	}
+	if cfg.OAuthSuccessURL == "" {
+		cfg.OAuthSuccessURL = "/admin/dashboard"
+	}
+	if cfg.OAuthFailureURL == "" {
+		cfg.OAuthFailureURL = "/admin/login"
 	}
 
 	var pool *pgxpool.Pool
@@ -180,13 +216,30 @@ func New(ctx context.Context, cfg Config) (*AdminServer, error) {
 		}
 	}
 
+	apiKeys := cfg.APIKeys
+	if apiKeys == nil && pool != nil {
+		pgAPIKeys := auth.NewPGAPIKeys(pool)
+		if err := pgAPIKeys.Migrate(ctx); err != nil {
+			if cfg.ownPool {
+				pool.Close()
+			}
+			return nil, err
+		}
+		apiKeys = pgAPIKeys
+	}
+
 	return &AdminServer{
 		cfg:      cfg,
 		log:      cfg.Log,
 		app:      cfg.App,
 		store:    st,
 		sessions: auth.NewSessionManager(sessionStore),
-		uploads:  uploads,
+		apiKeys:  apiKeys,
+		oauth: auth.OAuthStateManager{
+			SigningSecret: cfg.SigningSecret,
+			Secure:        strings.HasPrefix(strings.ToLower(cfg.PublicURL), "https://"),
+		},
+		uploads: uploads,
 	}, nil
 }
 

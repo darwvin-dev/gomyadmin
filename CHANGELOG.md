@@ -5,13 +5,29 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [0.6.0] — 2026-06-03
+
+### Added
+
+- OAuth provider support with signed state cookies, provider discovery endpoint, redirect start/callback routes, and adapter hooks for mapping external identities into `admin.Actor`
+- API key authentication for admin API requests via `Authorization: Bearer <key>` or `X-API-Key`
+- Built-in PostgreSQL API key storage with hashed secrets, prefix lookup, expiration, revocation, last-used tracking, and audit events
+- API key management endpoints at `GET/POST /admin/api/auth/api-keys` and `POST /admin/api/auth/api-keys/{id}/revoke`
+- Generated frontend login support for configured OAuth providers and a live API settings screen for issuing and revoking keys
+
+### Changed
+
+- `server.Config` now accepts optional `APIKeys`, `OAuthProviders`, `ResolveOAuthActor`, `SigningSecret`, `OAuthSuccessURL`, and `OAuthFailureURL`
+- Protected admin routes now accept either a session cookie or a valid API key
+- `gomyadmin version` now reports `0.6.0`
+
 ## [0.5.0] — 2026-06-02
 
 ### Added
 
 - Integration test suite in `tests/integration/` (`//go:build integration`) for `pkg/server` (full CRUD login→logout), `pkg/migrate` (idempotency, checksum validation), and CLI binary (version, doctor, init, introspect)
 - CI integration test step running against the existing PostgreSQL service
-- CI coverage threshold: PRs fail if total coverage drops below 90%
+- CI coverage gate for non-template Go packages; PRs fail if scoped total coverage drops below the configured threshold
 
 ### Changed
 
@@ -171,6 +187,7 @@ Initial public release.
 
 ---
 
+[0.6.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.6.0
 [0.5.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.5.0
 [0.4.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.4.0
 [0.3.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.3.0

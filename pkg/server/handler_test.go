@@ -20,6 +20,39 @@ type recordStore struct {
 	record Record
 }
 
+type fakeAPIKeys struct {
+	actor admin.Actor
+	keys  []auth.APIKey
+}
+
+func (f *fakeAPIKeys) Authenticate(_ context.Context, rawKey string) (admin.Actor, auth.APIKey, bool, error) {
+	if rawKey != "gma_test_secret" {
+		return admin.Actor{}, auth.APIKey{}, false, nil
+	}
+	return f.actor, auth.APIKey{ID: "key1", Name: "Test", Prefix: "test", Actor: f.actor}, true, nil
+}
+
+func (f *fakeAPIKeys) Create(_ context.Context, input auth.CreateAPIKeyInput) (auth.APIKey, string, error) {
+	key := auth.APIKey{ID: "key1", Name: input.Name, Prefix: "test", Scopes: input.Scopes, Actor: input.Actor, CreatedAt: time.Now().UTC()}
+	f.keys = append(f.keys, key)
+	return key, "gma_test_secret", nil
+}
+
+func (f *fakeAPIKeys) List(_ context.Context, _ admin.Actor) ([]auth.APIKey, error) {
+	return f.keys, nil
+}
+
+func (f *fakeAPIKeys) Revoke(_ context.Context, id string, _ admin.Actor) error {
+	for i := range f.keys {
+		if f.keys[i].ID == id {
+			now := time.Now().UTC()
+			f.keys[i].RevokedAt = &now
+			return nil
+		}
+	}
+	return auth.ErrAPIKeyNotFound
+}
+
 func (s *recordStore) List(_ context.Context, _ string, _, _, _, _ string, _ map[string]string, _, _ int) ([]Record, int, error) {
 	if s.record == nil {
 		return []Record{}, 0, nil
@@ -168,6 +201,75 @@ func TestHandleMeReturnsActor(t *testing.T) {
 	}
 	if !bytes.Contains(rec.Body.Bytes(), []byte("admin@example.com")) {
 		t.Fatalf("expected actor email, body = %s", rec.Body)
+	}
+}
+
+func TestHandleResourcesWithAPIKeyReturnsRegisteredResources(t *testing.T) {
+	srv, _ := newTestServer(t, superActor(), nil)
+	srv.apiKeys = &fakeAPIKeys{actor: superActor()}
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/resources", nil)
+	req.Header.Set("Authorization", "Bearer gma_test_secret")
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleCreateAndListAPIKeys(t *testing.T) {
+	srv, sessionID := newTestServer(t, superActor(), nil)
+	srv.apiKeys = &fakeAPIKeys{actor: superActor()}
+
+	createRec := do(t, srv, http.MethodPost, "/admin/api/auth/api-keys", map[string]any{
+		"name":       "Automation",
+		"scopes":     []string{"users.view"},
+		"expires_in": "24h",
+	}, sessionID)
+	if createRec.Code != http.StatusCreated {
+		t.Fatalf("create status = %d, body = %s", createRec.Code, createRec.Body.String())
+	}
+	if !bytes.Contains(createRec.Body.Bytes(), []byte("gma_test_secret")) {
+		t.Fatalf("expected secret in response, body = %s", createRec.Body.String())
+	}
+
+	listRec := do(t, srv, http.MethodGet, "/admin/api/auth/api-keys", nil, sessionID)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("list status = %d, body = %s", listRec.Code, listRec.Body.String())
+	}
+	if !bytes.Contains(listRec.Body.Bytes(), []byte("Automation")) {
+		t.Fatalf("expected created api key in list, body = %s", listRec.Body.String())
+	}
+}
+
+func TestHandleAuthProvidersReturnsConfiguredProviders(t *testing.T) {
+	srv, _ := newTestServer(t, superActor(), nil)
+	srv.cfg.OAuthProviders = map[string]auth.OAuthProvider{
+		"google": auth.GoogleOAuthProvider("client", "secret"),
+	}
+	rec := do(t, srv, http.MethodGet, "/admin/api/auth/providers", nil, "")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if !bytes.Contains(rec.Body.Bytes(), []byte("google")) {
+		t.Fatalf("expected provider in response, body = %s", rec.Body.String())
+	}
+}
+
+func TestHandleOAuthStartRedirectsToProvider(t *testing.T) {
+	srv, _ := newTestServer(t, superActor(), nil)
+	srv.cfg.PublicURL = "http://localhost:8080"
+	srv.cfg.OAuthProviders = map[string]auth.OAuthProvider{
+		"google": auth.GoogleOAuthProvider("client", "secret"),
+	}
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/auth/oauth/google/start", nil)
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+	if rec.Code != http.StatusFound {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	location := rec.Header().Get("Location")
+	if !strings.Contains(location, "accounts.google.com") {
+		t.Fatalf("expected oauth redirect, got %q", location)
 	}
 }
 

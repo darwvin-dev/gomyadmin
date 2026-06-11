@@ -6,5 +6,7 @@ dist
 coverage
 tmp
 *.log
+*.tsbuildinfo
+next-env.d.ts
 gomyadmin-demo
 .gocache/

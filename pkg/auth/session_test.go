@@ -161,6 +161,17 @@ func TestActorFromContextMissing(t *testing.T) {
 	}
 }
 
+func TestContextWithActor(t *testing.T) {
+	actor := admin.Actor{ID: "ctx-user", Email: "ctx@example.com"}
+	got, ok := ActorFromContext(ContextWithActor(context.Background(), actor))
+	if !ok {
+		t.Fatal("expected actor in context")
+	}
+	if got.ID != actor.ID {
+		t.Fatalf("actor id = %q", got.ID)
+	}
+}
+
 func TestCacheSessionStoreRoundTrip(t *testing.T) {
 	store := NewCacheSessionStore(cache.NewMemory())
 	session, err := store.Create(context.Background(), admin.Actor{ID: "a1", Email: "a@example.com"}, time.Hour)

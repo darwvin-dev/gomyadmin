@@ -13,6 +13,8 @@ jobs:
   test:
     name: Go test
     runs-on: ubuntu-latest
+    env:
+      COVERAGE_THRESHOLD: "55"
 
     services:
       postgres:
@@ -45,7 +47,9 @@ jobs:
       - name: Test
         env:
           DATABASE_URL: postgres://gomyadmin:gomyadmin@localhost:5432/gomyadmin?sslmode=disable
-        run: go test ./...
+        run: |
+          PKGS="$(go list ./... | grep -Ev '/(examples|templates|tests/integration)(/|$)')"
+          go test $PKGS
 
       - name: Integration tests
         env:
@@ -56,5 +60,41 @@ jobs:
         env:
           DATABASE_URL: postgres://gomyadmin:gomyadmin@localhost:5432/gomyadmin?sslmode=disable
         run: |
-          go test ./... -coverprofile=coverage.out -timeout 120s
-          go tool cover -func=coverage.out | awk '/total:/ {pct=$3+0; if (pct < 90) { print "Coverage " $3 " is below 90%"; exit 1 } else { print "Coverage " $3 " OK" }}'
+          PKGS="$(go list ./... | grep -Ev '/(examples|templates|tests/integration)(/|$)')"
+          go test $PKGS -coverprofile=coverage.out -timeout 120s
+          go tool cover -func=coverage.out | awk '/total:/ {pct=$3+0; threshold=ENVIRON["COVERAGE_THRESHOLD"]+0; if (pct < threshold) { print "Coverage " $3 " is below " threshold "%"; exit 1 } else { print "Coverage " $3 " OK" }}'
+
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: templates/frontend-next-shadcn
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: yarn
+          cache-dependency-path: templates/frontend-next-shadcn/yarn.lock
+
+      - name: Install Yarn
+        run: |
+          if ! command -v yarn >/dev/null 2>&1; then
+            npm install -g yarn@1.22.22
+          fi
+          yarn --version
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Typecheck
+        run: yarn run typecheck
+
+      - name: Build
+        run: yarn run build

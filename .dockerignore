@@ -1,0 +1,17 @@
+.git
+.github
+.gocache
+.next
+coverage
+dist
+tmp
+*.log
+*.tsbuildinfo
+
+**/.next
+**/coverage
+**/dist
+**/node_modules
+**/tmp
+
+gomyadmin-demo

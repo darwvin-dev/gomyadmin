@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,10 +27,13 @@ import (
 )
 
 type Server struct {
-	log      *slog.Logger
-	store    *Store
-	sessions *auth.SessionManager
-	uploads  storage.Storage
+	log       *slog.Logger
+	store     *Store
+	sessions  *auth.SessionManager
+	apiKeys   auth.APIKeyManager
+	oauth     auth.OAuthStateManager
+	providers map[string]auth.OAuthProvider
+	uploads   storage.Storage
 }
 
 func NewServer(ctx context.Context, log *slog.Logger) (*Server, error) {
@@ -41,11 +45,21 @@ func NewServer(ctx context.Context, log *slog.Logger) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	apiKeys := auth.NewPGAPIKeys(store.pool)
+	if err := apiKeys.Migrate(ctx); err != nil {
+		store.Close()
+		return nil, err
+	}
+	publicURL := first(os.Getenv("GOMYADMIN_PUBLIC_URL"), "http://localhost:8080")
+	signingSecret := first(os.Getenv("GOMYADMIN_SESSION_SECRET"), "gomyadmin-dev-secret")
 	return &Server{
-		log:      log,
-		store:    store,
-		sessions: auth.NewSessionManager(auth.NewMemorySessionStore()),
-		uploads:  storage.NewLocal("tmp/uploads", "http://localhost:8080/admin/api/files"),
+		log:       log,
+		store:     store,
+		sessions:  auth.NewSessionManager(auth.NewMemorySessionStore()),
+		apiKeys:   apiKeys,
+		oauth:     auth.OAuthStateManager{SigningSecret: signingSecret, Secure: strings.HasPrefix(strings.ToLower(publicURL), "https://")},
+		providers: configuredOAuthProviders(),
+		uploads:   storage.NewLocal("tmp/uploads", publicURL+"/admin/api/files"),
 	}, nil
 }
 
@@ -63,13 +77,19 @@ func (s *Server) Handler() http.Handler {
 
 	loginLimiter := auth.NewRateLimiter(8, time.Minute)
 	r.Post("/admin/api/auth/login", loginLimiter.Middleware(http.HandlerFunc(s.login)).ServeHTTP)
+	r.Get("/admin/api/auth/providers", s.authProviders)
+	r.Get("/admin/api/auth/oauth/{provider}/start", s.oauthStart)
+	r.Get("/admin/api/auth/oauth/{provider}/callback", s.oauthCallback)
 	r.Post("/admin/api/auth/logout", s.sessions.Middleware(http.HandlerFunc(s.logout)).ServeHTTP)
 	r.Post("/admin/api/auth/forgot-password", s.notImplemented("PASSWORD_RESET_REQUESTED"))
 	r.Post("/admin/api/auth/reset-password", s.notImplemented("PASSWORD_RESET_COMPLETED"))
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.sessions.Middleware)
+		r.Use(s.actorMiddleware)
 		r.Get("/admin/api/me", s.me)
+		r.Get("/admin/api/auth/api-keys", s.listAPIKeys)
+		r.Post("/admin/api/auth/api-keys", s.createAPIKey)
+		r.Post("/admin/api/auth/api-keys/{id}/revoke", s.revokeAPIKey)
 		r.Get("/admin/api/resources", s.resources)
 		r.Get("/admin/api/audit", s.audit)
 		r.Post("/admin/api/files", s.uploadFile)
@@ -89,6 +109,32 @@ func (s *Server) Handler() http.Handler {
 		})
 	})
 	return r
+}
+
+func (s *Server) actorMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawKey := strings.TrimSpace(r.Header.Get("X-API-Key"))
+		if rawKey == "" {
+			authz := strings.TrimSpace(r.Header.Get("Authorization"))
+			if strings.HasPrefix(strings.ToLower(authz), "bearer ") {
+				rawKey = strings.TrimSpace(authz[7:])
+			}
+		}
+		if rawKey != "" {
+			actor, _, ok, err := s.apiKeys.Authenticate(r.Context(), rawKey)
+			if err != nil {
+				admin.WriteError(w, http.StatusInternalServerError, requestID(r), "AUTH_FAILED", "Could not validate API key", nil)
+				return
+			}
+			if !ok {
+				admin.WriteError(w, http.StatusUnauthorized, requestID(r), "UNAUTHENTICATED", "Authentication required", nil)
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(auth.ContextWithActor(r.Context(), actor)))
+			return
+		}
+		s.sessions.Middleware(next).ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) login(w http.ResponseWriter, r *http.Request) {
@@ -120,6 +166,90 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	admin.WriteJSON(w, http.StatusOK, requestID(r), map[string]any{"user": actor, "expires_at": session.ExpiresAt}, nil)
 }
 
+func (s *Server) authProviders(w http.ResponseWriter, r *http.Request) {
+	providers := make([]map[string]string, 0, len(s.providers))
+	for key, provider := range s.providers {
+		providers = append(providers, map[string]string{
+			"name":      key,
+			"label":     first(provider.Name, key),
+			"start_url": "/admin/api/auth/oauth/" + key + "/start",
+		})
+	}
+	admin.WriteJSON(w, http.StatusOK, requestID(r), providers, nil)
+}
+
+func (s *Server) oauthStart(w http.ResponseWriter, r *http.Request) {
+	providerName := chi.URLParam(r, "provider")
+	provider, ok := s.providers[providerName]
+	if !ok {
+		admin.WriteError(w, http.StatusNotFound, requestID(r), "NOT_FOUND", "OAuth provider not found", nil)
+		return
+	}
+	state := auth.OAuthState{
+		Provider:   providerName,
+		SuccessURL: first(r.URL.Query().Get("success"), "/admin/dashboard"),
+		FailureURL: first(r.URL.Query().Get("failure"), "/admin/login"),
+	}
+	nonce, err := s.oauth.Begin(w, state)
+	if err != nil {
+		admin.WriteError(w, http.StatusInternalServerError, requestID(r), "OAUTH_FAILED", "Could not start OAuth flow", nil)
+		return
+	}
+	publicURL := first(os.Getenv("GOMYADMIN_PUBLIC_URL"), "http://localhost:8080")
+	redirectURI := publicURL + "/admin/api/auth/oauth/" + providerName + "/callback"
+	http.Redirect(w, r, provider.AuthorizationURL(redirectURI, nonce), http.StatusFound)
+}
+
+func (s *Server) oauthCallback(w http.ResponseWriter, r *http.Request) {
+	providerName := chi.URLParam(r, "provider")
+	provider, ok := s.providers[providerName]
+	if !ok {
+		admin.WriteError(w, http.StatusNotFound, requestID(r), "NOT_FOUND", "OAuth provider not found", nil)
+		return
+	}
+	flowState, err := s.oauth.Verify(r, r.URL.Query().Get("state"))
+	if err != nil {
+		s.oauth.Clear(w)
+		s.redirectOAuthFailure(w, r, "/admin/login", "state")
+		return
+	}
+	s.oauth.Clear(w)
+	code := r.URL.Query().Get("code")
+	if code == "" {
+		s.redirectOAuthFailure(w, r, flowState.FailureURL, "code")
+		return
+	}
+	publicURL := first(os.Getenv("GOMYADMIN_PUBLIC_URL"), "http://localhost:8080")
+	redirectURI := publicURL + "/admin/api/auth/oauth/" + providerName + "/callback"
+	identity, err := provider.Exchange(r.Context(), code, redirectURI)
+	if err != nil {
+		s.redirectOAuthFailure(w, r, flowState.FailureURL, "exchange")
+		return
+	}
+	actor, err := s.store.ActiveUserByEmail(r.Context(), identity.Email)
+	if errors.Is(err, errNotFound) {
+		s.redirectOAuthFailure(w, r, flowState.FailureURL, "denied")
+		return
+	}
+	if err != nil {
+		s.redirectOAuthFailure(w, r, flowState.FailureURL, "lookup")
+		return
+	}
+	session, err := s.sessions.Start(r.Context(), w, actor)
+	if err != nil {
+		s.redirectOAuthFailure(w, r, flowState.FailureURL, "session")
+		return
+	}
+	_, _ = auth.IssueCSRF(w, false)
+	s.auditEvent(r, actor, "oauth_login", "auth", actor.ID, nil, map[string]any{
+		"provider":   providerName,
+		"email":      identity.Email,
+		"subject":    identity.Subject,
+		"expires_at": session.ExpiresAt,
+	})
+	http.Redirect(w, r, flowState.SuccessURL, http.StatusFound)
+}
+
 func (s *Server) logout(w http.ResponseWriter, r *http.Request) {
 	actor, _ := auth.ActorFromContext(r.Context())
 	_ = s.sessions.End(r.Context(), w, r)
@@ -138,6 +268,62 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 		"user":    actor,
 		"tenants": tenants,
 	}, nil)
+}
+
+func (s *Server) listAPIKeys(w http.ResponseWriter, r *http.Request) {
+	actor, _ := auth.ActorFromContext(r.Context())
+	keys, err := s.apiKeys.List(r.Context(), actor)
+	if err != nil {
+		admin.WriteError(w, http.StatusInternalServerError, requestID(r), "QUERY_FAILED", "Could not load API keys", nil)
+		return
+	}
+	admin.WriteJSON(w, http.StatusOK, requestID(r), keys, nil)
+}
+
+func (s *Server) createAPIKey(w http.ResponseWriter, r *http.Request) {
+	actor, _ := auth.ActorFromContext(r.Context())
+	var input struct {
+		Name      string   `json:"name"`
+		Scopes    []string `json:"scopes"`
+		ExpiresIn string   `json:"expires_in"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		admin.WriteError(w, http.StatusBadRequest, requestID(r), "INVALID_JSON", "Invalid JSON body", nil)
+		return
+	}
+	expiresIn, err := parseDuration(input.ExpiresIn)
+	if err != nil {
+		admin.WriteError(w, http.StatusBadRequest, requestID(r), "INVALID_DURATION", "expires_in must be a valid duration like 24h", nil)
+		return
+	}
+	key, secret, err := s.apiKeys.Create(r.Context(), auth.CreateAPIKeyInput{
+		Name:      input.Name,
+		Actor:     actor,
+		Scopes:    input.Scopes,
+		ExpiresIn: expiresIn,
+	})
+	if err != nil {
+		admin.WriteError(w, http.StatusBadRequest, requestID(r), "CREATE_FAILED", err.Error(), nil)
+		return
+	}
+	s.auditEvent(r, actor, "create_api_key", "api_keys", key.ID, nil, map[string]any{"name": key.Name, "prefix": key.Prefix, "scopes": key.Scopes})
+	admin.WriteJSON(w, http.StatusCreated, requestID(r), map[string]any{"key": key, "secret": secret}, nil)
+}
+
+func (s *Server) revokeAPIKey(w http.ResponseWriter, r *http.Request) {
+	actor, _ := auth.ActorFromContext(r.Context())
+	id := chi.URLParam(r, "id")
+	err := s.apiKeys.Revoke(r.Context(), id, actor)
+	if errors.Is(err, auth.ErrAPIKeyNotFound) {
+		admin.WriteError(w, http.StatusNotFound, requestID(r), "NOT_FOUND", "API key not found", nil)
+		return
+	}
+	if err != nil {
+		admin.WriteError(w, http.StatusInternalServerError, requestID(r), "REVOKE_FAILED", "Could not revoke API key", nil)
+		return
+	}
+	s.auditEvent(r, actor, "revoke_api_key", "api_keys", id, nil, nil)
+	admin.WriteJSON(w, http.StatusOK, requestID(r), map[string]any{"ok": true}, nil)
 }
 
 func (s *Server) resources(w http.ResponseWriter, r *http.Request) {
@@ -474,7 +660,7 @@ func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", first(os.Getenv("GOMYADMIN_PUBLIC_URL"), "http://localhost:3000"))
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, X-Request-ID")
+		w.Header().Set("Access-Control-Allow-Headers", "Authorization, Content-Type, X-API-Key, X-CSRF-Token, X-Request-ID")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
@@ -516,6 +702,34 @@ func first(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func parseDuration(raw string) (time.Duration, error) {
+	if raw == "" {
+		return 0, nil
+	}
+	return time.ParseDuration(raw)
+}
+
+func configuredOAuthProviders() map[string]auth.OAuthProvider {
+	providers := map[string]auth.OAuthProvider{}
+	if clientID := os.Getenv("GOOGLE_CLIENT_ID"); clientID != "" {
+		providers["google"] = auth.GoogleOAuthProvider(clientID, os.Getenv("GOOGLE_CLIENT_SECRET"))
+	}
+	return providers
+}
+
+func (s *Server) redirectOAuthFailure(w http.ResponseWriter, r *http.Request, baseURL, code string) {
+	target := first(baseURL, "/admin/login")
+	parsed, err := url.Parse(target)
+	if err != nil {
+		admin.WriteError(w, http.StatusUnauthorized, requestID(r), "OAUTH_FAILED", "OAuth login failed", nil)
+		return
+	}
+	values := parsed.Query()
+	values.Set("oauth_error", code)
+	parsed.RawQuery = values.Encode()
+	http.Redirect(w, r, parsed.String(), http.StatusFound)
 }
 
 func firstRole(actor admin.Actor) string {

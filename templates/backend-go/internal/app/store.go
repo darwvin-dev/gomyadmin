@@ -87,6 +87,25 @@ limit 1`, email).Scan(&actor.ID, &actor.Email, &actor.Name, &actor.TenantID, &ro
 	return actor, true, nil
 }
 
+func (s *Store) ActiveUserByEmail(ctx context.Context, email string) (Actor, error) {
+	var actor Actor
+	var role string
+	err := s.pool.QueryRow(ctx, `
+select id, email, name, tenant_id, role
+from users
+where email = $1 and status = 'active'
+limit 1`, email).Scan(&actor.ID, &actor.Email, &actor.Name, &actor.TenantID, &role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Actor{}, errNotFound
+	}
+	if err != nil {
+		return Actor{}, err
+	}
+	actor.Roles = []string{role}
+	actor.Permissions = []string{"*"}
+	return actor, nil
+}
+
 func (s *Store) Tenants(ctx context.Context) ([]map[string]string, error) {
 	rows, err := s.pool.Query(ctx, "select id, name from tenants order by name")
 	if err != nil {

@@ -392,9 +392,10 @@ seed:
 	docker compose exec -T postgres psql -U gomyadmin -d gomyadmin -f /dev/stdin < backend/internal/db/seeds/001_demo.sql
 `
 
-const backendDockerfileTemplate = `FROM golang:1.23 AS build
+const backendDockerfileTemplate = `FROM golang:1.25 AS build
 WORKDIR /app
 COPY . .
+RUN go mod tidy
 RUN go build -o /out/server ./cmd/server
 
 FROM debian:bookworm-slim
@@ -405,9 +406,9 @@ CMD ["/server"]
 
 const backendGoModTemplate = `module {{.Module}}/backend
 
-go 1.23
+go 1.25.0
 
-require github.com/darwvin-dev/gomyadmin v0.1.0
+require github.com/darwvin-dev/gomyadmin v0.6.0
 `
 
 const backendMainTemplate = `package main
@@ -896,13 +897,14 @@ export default function AdminPage() {
 `
 
 const frontendDashboardTemplate = `import Link from "next/link"
-import { ArrowUpRight, Database, FileText, ShieldCheck, Users } from "lucide-react"
+import { ArrowUpRight, Database, FileText, KeyRound, ShieldCheck, Users } from "lucide-react"
 import { apiURL } from "@/lib/api"
 
 const stats = [
   { label: "Resources", value: "4", icon: Database },
   { label: "Admin users", value: "1", icon: Users },
   { label: "Open invoices", value: "1", icon: FileText },
+  { label: "API auth", value: "v0.6", icon: KeyRound },
   { label: "Session policy", value: "Secure", icon: ShieldCheck }
 ]
 
@@ -942,7 +944,7 @@ export default function DashboardPage() {
           </section>
           <section className="card mt">
             <h2>Ready for real data</h2>
-            <p className="subtle">Run migrations and seeds, then connect resource list pages to /admin/api/resources.</p>
+            <p className="subtle">Run migrations and seeds, then wire OAuth providers and API keys into your deployment config.</p>
           </section>
         </div>
       </section>
@@ -956,7 +958,7 @@ const loginPageTemplate = `export default function LoginPage() {
     <main className="login">
       <form>
         <h1>Sign in</h1>
-        <p className="subtle">Use admin@example.com / password after replacing the demo password hash.</p>
+        <p className="subtle">Use admin@example.com / password after replacing the demo password hash. OAuth providers can be mounted at /admin/api/auth/oauth/:provider/start.</p>
         <input className="input" placeholder="admin@example.com" />
         <input className="input" placeholder="password" type="password" />
         <button className="button">Continue</button>
@@ -1018,6 +1020,10 @@ export async function adminRequest<T>(path: string, init?: RequestInit): Promise
     throw new Error("Admin API request failed")
   }
   return response.json() as Promise<T>
+}
+
+export function oauthStartURL(provider: string): string {
+  return apiURL + "/admin/api/auth/oauth/" + provider + "/start"
 }
 `
 

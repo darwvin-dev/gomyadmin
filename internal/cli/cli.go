@@ -134,7 +134,7 @@ func columnToField(col introspect.Column, isPK bool) generator.GeneratedField {
 	return gf
 }
 
-const Version = "0.1.0"
+const Version = "0.6.0"
 
 func Run(args []string) int {
 	if len(args) == 0 {

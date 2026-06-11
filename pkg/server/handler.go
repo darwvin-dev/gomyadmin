@@ -25,11 +25,17 @@ func (s *AdminServer) buildRouter() http.Handler {
 	loginLimiter := auth.NewRateLimiter(8, time.Minute)
 
 	r.Post("/admin/api/auth/login", loginLimiter.Middleware(http.HandlerFunc(s.handleLogin)).ServeHTTP)
+	r.Get("/admin/api/auth/providers", s.handleAuthProviders)
+	r.Get("/admin/api/auth/oauth/{provider}/start", s.handleOAuthStart)
+	r.Get("/admin/api/auth/oauth/{provider}/callback", s.handleOAuthCallback)
 	r.Post("/admin/api/auth/logout", s.sessions.Middleware(http.HandlerFunc(s.handleLogout)).ServeHTTP)
 
 	r.Group(func(r chi.Router) {
-		r.Use(s.sessions.Middleware)
+		r.Use(s.actorMiddleware)
 		r.Get("/admin/api/me", s.handleMe)
+		r.Get("/admin/api/auth/api-keys", s.handleListAPIKeys)
+		r.Post("/admin/api/auth/api-keys", s.handleCreateAPIKey)
+		r.Post("/admin/api/auth/api-keys/{id}/revoke", s.handleRevokeAPIKey)
 		r.Get("/admin/api/resources", s.handleResources)
 		r.Get("/admin/api/audit", s.handleAudit)
 		r.Post("/admin/api/files", s.handleUploadFile)
@@ -53,6 +59,36 @@ func (s *AdminServer) buildRouter() http.Handler {
 
 func (s *AdminServer) handleResources(w http.ResponseWriter, r *http.Request) {
 	admin.WriteJSON(w, http.StatusOK, reqID(r), s.store.Resources(), nil)
+}
+
+func (s *AdminServer) actorMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rawKey := strings.TrimSpace(r.Header.Get("X-API-Key"))
+		if rawKey == "" {
+			authz := strings.TrimSpace(r.Header.Get("Authorization"))
+			if strings.HasPrefix(strings.ToLower(authz), "bearer ") {
+				rawKey = strings.TrimSpace(authz[7:])
+			}
+		}
+		if rawKey != "" {
+			if s.apiKeys == nil {
+				admin.WriteError(w, http.StatusUnauthorized, reqID(r), "UNAUTHENTICATED", "API key authentication is not enabled", nil)
+				return
+			}
+			actor, _, ok, err := s.apiKeys.Authenticate(r.Context(), rawKey)
+			if err != nil {
+				admin.WriteError(w, http.StatusInternalServerError, reqID(r), "AUTH_FAILED", "Could not validate API key", nil)
+				return
+			}
+			if !ok {
+				admin.WriteError(w, http.StatusUnauthorized, reqID(r), "UNAUTHENTICATED", "Authentication required", nil)
+				return
+			}
+			next.ServeHTTP(w, r.WithContext(auth.ContextWithActor(r.Context(), actor)))
+			return
+		}
+		s.sessions.Middleware(next).ServeHTTP(w, r)
+	})
 }
 
 // Permission helpers
