@@ -7,13 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-06-11
+
 ### Added
 
+- Stable 1.0 release baseline for the CLI, generator, auth, server, adapters, migration runner, generated backend, generated frontend, and public admin APIs.
 - Expanded pure unit coverage for admin builders, OAuth state/provider helpers, API key helpers, audit memory filtering, and Mongo adapter query helpers.
 - Expanded unit coverage for server metadata/middleware helpers and auth password/session edge cases.
 
 ### Changed
 
+- `gomyadmin version` now reports `1.0.0`.
+- Generated backend modules now require `github.com/darwvin-dev/gomyadmin v1.0.0`.
 - Raised the scoped Go coverage gate from 55% to 60%.
 - Raised the scoped Go coverage gate from 60% to 62%.
 
@@ -203,6 +208,7 @@ Initial public release.
 
 ---
 
+[1.0.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v1.0.0
 [0.6.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.6.0
 [0.5.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.5.0
 [0.4.0]: https://github.com/darwvin-dev/gomyadmin/releases/tag/v0.4.0

@@ -408,7 +408,7 @@ const backendGoModTemplate = `module {{.Module}}/backend
 
 go 1.25.0
 
-require github.com/darwvin-dev/gomyadmin v0.6.0
+require github.com/darwvin-dev/gomyadmin v1.0.0
 `
 
 const backendMainTemplate = `package main
