@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Expanded pure unit coverage for admin builders, OAuth state/provider helpers, API key helpers, audit memory filtering, and Mongo adapter query helpers.
+
+### Changed
+
+- Raised the scoped Go coverage gate from 55% to 60%.
+
 ### Fixed
 
 - PostgreSQL UUID values scanned through the server store are now serialized as canonical UUID strings instead of JSON arrays.

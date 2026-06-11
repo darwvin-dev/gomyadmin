@@ -1,8 +1,13 @@
 package admin
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestNewDefaultsName(t *testing.T) {
@@ -226,6 +231,13 @@ func TestFieldTypes(t *testing.T) {
 	r.Field("Price").Money("USD")
 	r.Field("Status").Enum("active", "inactive").Badge()
 	r.Field("Body").Markdown()
+	r.Field("Flag").Boolean()
+	r.Field("Score").Float()
+	r.Field("When").DateTime()
+	r.Field("Clock").Time()
+	r.Field("MetaJSON").JSON()
+	r.Field("Description").RichText()
+	r.Field("Total").Computed()
 	r.Field("Photo").ImageUpload()
 	r.Field("Doc").FileUpload()
 	r.Field("Meta").JSONB()
@@ -255,6 +267,27 @@ func TestFieldTypes(t *testing.T) {
 	}
 	if byName("Body").Type != FieldMarkdown {
 		t.Error("markdown type")
+	}
+	if byName("Flag").Type != FieldBoolean {
+		t.Error("boolean type")
+	}
+	if byName("Score").Type != FieldFloat {
+		t.Error("float type")
+	}
+	if byName("When").Type != FieldDateTime {
+		t.Error("datetime type")
+	}
+	if byName("Clock").Type != FieldTime {
+		t.Error("time type")
+	}
+	if byName("MetaJSON").Type != FieldJSON {
+		t.Error("json type")
+	}
+	if byName("Description").Type != FieldRichText {
+		t.Error("rich text type")
+	}
+	if byName("Total").Type != FieldComputed {
+		t.Error("computed type")
 	}
 	if byName("Photo").Type != FieldImage {
 		t.Error("image type")
@@ -356,6 +389,44 @@ func TestFieldRelations(t *testing.T) {
 	}
 }
 
+func TestFieldHasManyAndRelationDefaults(t *testing.T) {
+	app := New("test")
+	type User struct{}
+	type Post struct{}
+	r := app.Resource(User{})
+	r.Field("Posts").HasMany(Post{}).Display("title")
+	r.Field("Owner").RelationTo(User{}).ForeignKey("owner_id")
+
+	posts, _ := r.FieldByName("Posts")
+	if posts.Type != FieldRelation || posts.Relation == nil || posts.Relation.Kind != "has_many" || posts.Relation.DisplayField != "title" {
+		t.Fatalf("posts relation = %#v", posts.Relation)
+	}
+	owner, _ := r.FieldByName("Owner")
+	if owner.Relation == nil || owner.Relation.Kind != "belongs_to" || owner.Relation.ForeignKey != "owner_id" {
+		t.Fatalf("owner relation = %#v", owner.Relation)
+	}
+}
+
+func TestFieldShortcutChainDelegatesToResource(t *testing.T) {
+	app := New("test")
+	type User struct{}
+	field := app.Resource(User{}).Field("ID")
+	field.Field("Email").Email()
+	field.Action("Suspend", nil)
+	field.Policy(AllowAllPolicy{}).Audit().TenantScoped("tenant_id")
+
+	resource := field.Resource
+	if _, ok := resource.FieldByName("Email"); !ok {
+		t.Fatal("expected chained field")
+	}
+	if _, ok := resource.ActionByName("suspend"); !ok {
+		t.Fatal("expected chained action")
+	}
+	if resource.PolicyValue == nil || !resource.AuditEnabled || resource.TenantColumn != "tenant_id" {
+		t.Fatalf("resource chain = %#v", resource)
+	}
+}
+
 func TestFieldBadgeColors(t *testing.T) {
 	app := New("test")
 	type Ticket struct{}
@@ -425,6 +496,8 @@ func TestActionBuilder(t *testing.T) {
 		Danger().
 		RequireConfirmation().
 		RequireReason().
+		Form(map[string]any{"reason": "string"}).
+		WithTimeout(5 * time.Second).
 		Can("invoices.refund")
 
 	a, ok := r.ActionByName("refund")
@@ -446,6 +519,9 @@ func TestActionBuilder(t *testing.T) {
 	if a.Permission != "invoices.refund" {
 		t.Errorf("permission = %q", a.Permission)
 	}
+	if a.InputSchema == nil || a.Timeout != "5s" || a.Icon != "rotate-ccw" {
+		t.Fatalf("action metadata = %#v", a)
+	}
 }
 
 func TestActionByNameLabel(t *testing.T) {
@@ -464,7 +540,83 @@ func TestActionByNameLabel(t *testing.T) {
 	}
 }
 
+func TestActionShortcutChainDelegatesToResource(t *testing.T) {
+	app := New("test")
+	type User struct{}
+	action := app.Resource(User{}).Action("Archive", nil)
+	action.Field("ArchivedAt").Date()
+	action.Action("Restore", nil)
+	action.Policy(AllowAllPolicy{}).Audit().TenantScoped("tenant_id")
+
+	resource := action.Resource
+	if _, ok := resource.FieldByName("ArchivedAt"); !ok {
+		t.Fatal("expected chained field")
+	}
+	if _, ok := resource.ActionByName("restore"); !ok {
+		t.Fatal("expected chained action")
+	}
+	if resource.PolicyValue == nil || !resource.AuditEnabled || resource.TenantColumn != "tenant_id" {
+		t.Fatalf("resource chain = %#v", resource)
+	}
+}
+
 // --- context ---
+
+func TestAdminContextRoundTrip(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	ctx := WithContext(context.Background(), Context{RequestID: "req-1", TenantID: "tenant-1", Request: req})
+	got, ok := FromContext(ctx)
+	if !ok {
+		t.Fatal("expected admin context")
+	}
+	if got.RequestID != "req-1" || got.TenantID != "tenant-1" || got.Request != req {
+		t.Fatalf("context = %#v", got)
+	}
+	if _, ok := FromContext(context.Background()); ok {
+		t.Fatal("empty context should not have admin context")
+	}
+}
+
+func TestPolicies(t *testing.T) {
+	ctx := Context{}
+	actor := Actor{ID: "actor"}
+	allow := AllowAllPolicy{}
+	if !allow.CanView(ctx, actor, nil) || !allow.CanCreate(ctx, actor) || !allow.CanUpdate(ctx, actor, nil) || !allow.CanDelete(ctx, actor, nil) {
+		t.Fatal("allow all policy should allow every operation")
+	}
+	deny := DenyAllPolicy{}
+	if deny.CanView(ctx, actor, nil) || deny.CanCreate(ctx, actor) || deny.CanUpdate(ctx, actor, nil) || deny.CanDelete(ctx, actor, nil) {
+		t.Fatal("deny all policy should deny every operation")
+	}
+}
+
+func TestWriteJSONAndWriteError(t *testing.T) {
+	rec := httptest.NewRecorder()
+	WriteJSON(rec, http.StatusCreated, "req-1", map[string]string{"id": "1"}, nil)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var okResp Response
+	if err := json.NewDecoder(rec.Body).Decode(&okResp); err != nil {
+		t.Fatal(err)
+	}
+	if okResp.Meta["request_id"] != "req-1" || okResp.Error != nil {
+		t.Fatalf("response = %#v", okResp)
+	}
+
+	rec = httptest.NewRecorder()
+	WriteError(rec, http.StatusBadRequest, "req-2", "BAD", "Bad request", map[string][]string{"name": {"required"}})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d", rec.Code)
+	}
+	var errResp Response
+	if err := json.NewDecoder(rec.Body).Decode(&errResp); err != nil {
+		t.Fatal(err)
+	}
+	if errResp.Meta["request_id"] != "req-2" || errResp.Error == nil || errResp.Error.Code != "BAD" || errResp.Error.Fields["name"][0] != "required" {
+		t.Fatalf("response = %#v", errResp)
+	}
+}
 
 func TestActorPermissionExact(t *testing.T) {
 	actor := Actor{Permissions: []string{"users.delete"}}

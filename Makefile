@@ -1,6 +1,6 @@
 GO_PACKAGES := $(shell go list ./... | grep -Ev '/(examples|templates|tests/integration)(/|$$)')
 YARN := npx --yes yarn@1.22.22
-COVERAGE_THRESHOLD ?= 55
+COVERAGE_THRESHOLD ?= 60
 
 .PHONY: demo dev serve backend frontend test test-go test-coverage test-frontend vet doctor clean
 

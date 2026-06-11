@@ -139,6 +139,25 @@ func TestBuildFilterGteOperator(t *testing.T) {
 	}
 }
 
+func TestBuildFilterComparisonOperators(t *testing.T) {
+	resource := testResource()
+	cases := map[string]string{
+		"name::lte": "$lte",
+		"name::gt":  "$gt",
+		"name::lt":  "$lt",
+	}
+	for filterKey, operator := range cases {
+		filter, err := buildFilter(resource, "", "super_admin", "", map[string]string{filterKey: "M"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, ok := filter["name"].(bson.M)
+		if !ok || m[operator] != "M" {
+			t.Fatalf("%s filter = %v", filterKey, filter["name"])
+		}
+	}
+}
+
 func TestBuildFilterUnknownFieldReturnsError(t *testing.T) {
 	resource := testResource()
 	_, err := buildFilter(resource, "", "super_admin", "", map[string]string{"nonexistent::eq": "x"})
@@ -196,6 +215,15 @@ func TestBuildSortUnknownFieldReturnsNil(t *testing.T) {
 	}
 }
 
+func TestBuildSortUsesDefaultSort(t *testing.T) {
+	resource := testResource()
+	resource.DefaultSort = "-name"
+	sort := buildSort(resource, "")
+	if sort == nil || sort[0].Key != "name" || sort[0].Value != -1 {
+		t.Fatalf("sort = %v", sort)
+	}
+}
+
 func TestNormalizeRecordRenamesUnderscoreID(t *testing.T) {
 	record := server.Record{"_id": "mongo-obj-id", "name": "Alice"}
 	normalized := normalizeRecord(record)
@@ -231,5 +259,42 @@ func TestFieldBySQLNameMissing(t *testing.T) {
 	_, ok := fieldBySQLName(resource, "nonexistent")
 	if ok {
 		t.Fatal("should not find nonexistent field")
+	}
+}
+
+func TestHasField(t *testing.T) {
+	resource := testResource()
+	if !hasField(resource, "name") {
+		t.Fatal("expected name field")
+	}
+	if hasField(resource, "missing") {
+		t.Fatal("missing field should not exist")
+	}
+}
+
+func TestCloneRecord(t *testing.T) {
+	original := server.Record{"id": "1", "name": "Alice"}
+	cloned := clone(original)
+	cloned["name"] = "Bob"
+	if original["name"] != "Alice" {
+		t.Fatalf("original mutated: %#v", original)
+	}
+	if cloned["id"] != "1" || cloned["name"] != "Bob" {
+		t.Fatalf("clone = %#v", cloned)
+	}
+}
+
+func TestNewBuildsResourceMetadata(t *testing.T) {
+	app := admin.New("Test")
+	app.Resource(item{}).TableName("items").Field("ID").String().Primary()
+	store := New(nil, app)
+	if store == nil {
+		t.Fatal("store is nil")
+	}
+	if !store.HasResource("items") {
+		t.Fatal("expected items resource")
+	}
+	if _, ok := store.resources["items"]; !ok {
+		t.Fatal("expected resources map entry")
 	}
 }
