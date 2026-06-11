@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,6 +106,63 @@ func TestSessionManagerStart(t *testing.T) {
 	}
 }
 
+func TestSessionManagerStartHonorsCookieSettings(t *testing.T) {
+	store := NewMemorySessionStore()
+	manager := NewSessionManager(store)
+	manager.CookieName = "custom_session"
+	manager.Secure = true
+	manager.SameSite = http.SameSiteStrictMode
+
+	w := httptest.NewRecorder()
+	session, err := manager.Start(context.Background(), w, admin.Actor{ID: "user-settings"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := w.Result().Cookies()[0]
+	if cookie.Name != "custom_session" || cookie.Value != session.ID {
+		t.Fatalf("cookie = %+v, session = %+v", cookie, session)
+	}
+	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteStrictMode {
+		t.Fatalf("cookie security settings = %+v", cookie)
+	}
+}
+
+func TestSessionManagerEndClearsCookieAndDeletesSession(t *testing.T) {
+	store := NewMemorySessionStore()
+	manager := NewSessionManager(store)
+	start := httptest.NewRecorder()
+	session, err := manager.Start(context.Background(), start, admin.Actor{ID: "logout-user"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "gomyadmin_session", Value: session.ID})
+	rec := httptest.NewRecorder()
+	if err := manager.End(context.Background(), rec, req); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Get(context.Background(), session.ID); !errors.Is(err, ErrSessionNotFound) {
+		t.Fatalf("session should be deleted, err = %v", err)
+	}
+	cleared := rec.Result().Cookies()[0]
+	if cleared.Value != "" || cleared.MaxAge != -1 {
+		t.Fatalf("clear cookie = %+v", cleared)
+	}
+}
+
+func TestSessionManagerEndWithoutCookieStillClearsCookie(t *testing.T) {
+	manager := NewSessionManager(NewMemorySessionStore())
+	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
+	rec := httptest.NewRecorder()
+	if err := manager.End(context.Background(), rec, req); err != nil {
+		t.Fatal(err)
+	}
+	if cookies := rec.Result().Cookies(); len(cookies) != 1 || cookies[0].MaxAge != -1 {
+		t.Fatalf("cookies = %+v", cookies)
+	}
+}
+
 func TestSessionManagerMiddlewareRejectsNoSession(t *testing.T) {
 	store := NewMemorySessionStore()
 	manager := NewSessionManager(store)
@@ -115,6 +173,7 @@ func TestSessionManagerMiddlewareRejectsNoSession(t *testing.T) {
 	}))
 
 	req := httptest.NewRequest(http.MethodGet, "/admin", nil)
+	req.Header.Set("X-Request-ID", "req-123")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, req)
 
@@ -123,6 +182,9 @@ func TestSessionManagerMiddlewareRejectsNoSession(t *testing.T) {
 	}
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), `"request_id":"req-123"`) {
+		t.Fatalf("response should include request id in meta, body = %s", w.Body.String())
 	}
 }
 

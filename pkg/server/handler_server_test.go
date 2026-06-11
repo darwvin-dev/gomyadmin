@@ -154,3 +154,73 @@ func TestHandleLoginInvalidJSONReturns400(t *testing.T) {
 		t.Fatalf("status = %d, want 400 for invalid JSON", rec.Code)
 	}
 }
+
+func TestCorsMiddlewareHandlesPreflight(t *testing.T) {
+	srv, _ := newTestServer(t, superActor(), nil)
+	srv.cfg.PublicURL = "https://admin.example.com"
+	called := false
+	handler := srv.corsMiddleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		called = true
+	}))
+
+	req := httptest.NewRequest(http.MethodOptions, "/admin/api/resources", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("next handler should not be called for preflight requests")
+	}
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want 204", rec.Code)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://admin.example.com" {
+		t.Fatalf("allow origin = %q", got)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
+		t.Fatalf("allow credentials = %q", got)
+	}
+}
+
+func TestCorsMiddlewarePassesThroughNonPreflight(t *testing.T) {
+	srv, _ := newTestServer(t, superActor(), nil)
+	called := false
+	handler := srv.corsMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/resources", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if !called {
+		t.Fatal("next handler should be called")
+	}
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202", rec.Code)
+	}
+	if got := rec.Header().Get("Access-Control-Allow-Methods"); got != "GET, POST, PATCH, DELETE, OPTIONS" {
+		t.Fatalf("allow methods = %q", got)
+	}
+}
+
+func TestRequestTimeoutAppliesDeadline(t *testing.T) {
+	handler := requestTimeout(time.Minute)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		deadline, ok := r.Context().Deadline()
+		if !ok {
+			t.Fatal("expected deadline")
+		}
+		if time.Until(deadline) <= 0 {
+			t.Fatalf("deadline should be in the future: %s", deadline)
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/api/resources", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, want 202", rec.Code)
+	}
+}

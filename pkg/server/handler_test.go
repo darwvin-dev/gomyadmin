@@ -157,6 +157,63 @@ func TestNormalizeScannedFormatsBinaryUUID(t *testing.T) {
 	}
 }
 
+func TestCamelToSnakeAcronymsAndNumbers(t *testing.T) {
+	cases := map[string]string{
+		"":             "",
+		"ID":           "id",
+		"TenantID":     "tenant_id",
+		"APIKey":       "api_key",
+		"HTTP2Status":  "http2_status",
+		"already_done": "already_done",
+	}
+	for in, want := range cases {
+		if got := camelToSnake(in); got != want {
+			t.Fatalf("camelToSnake(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestResourceToMetaIncludesFieldAndActionMetadata(t *testing.T) {
+	app := admin.New("Test")
+	type Invoice struct{}
+	r := app.Resource(Invoice{}).
+		Label("Invoices").
+		Icon("receipt").
+		Description("Manage invoices").
+		TableName("billing_invoices").
+		Sort("-issued_at").
+		TenantScoped("tenant_id")
+	r.Field("ID").UUID().Primary().Sortable()
+	r.Field("TenantID").String().TenantKey().Hidden()
+	r.Field("Status").Enum("draft", "paid").Searchable().Filterable()
+	r.Action("Send Reminder", nil).WithIcon("mail")
+
+	meta := resourceToMeta(r)
+	if meta.Name != "invoice" || meta.Label != "Invoices" || meta.Table != "billing_invoices" {
+		t.Fatalf("unexpected resource meta: %+v", meta)
+	}
+	if meta.PrimaryKey != "id" || meta.TenantKey != "tenant_id" || meta.DefaultSort != "-issued_at" {
+		t.Fatalf("unexpected keys/sort: %+v", meta)
+	}
+	if len(meta.Fields) != 3 {
+		t.Fatalf("fields len = %d", len(meta.Fields))
+	}
+	if meta.Fields[1].SQLName != "tenant_id" || !meta.Fields[1].TenantKey || !meta.Fields[1].Hidden {
+		t.Fatalf("tenant field meta = %+v", meta.Fields[1])
+	}
+	if meta.Fields[2].SQLName != "status" || len(meta.Fields[2].EnumValues) != 2 || !meta.Fields[2].Searchable || !meta.Fields[2].Filterable {
+		t.Fatalf("status field meta = %+v", meta.Fields[2])
+	}
+	if len(meta.Actions) != 1 || meta.Actions[0].Name != "send-reminder" || meta.Actions[0].Icon != "mail" {
+		t.Fatalf("action meta = %+v", meta.Actions)
+	}
+
+	byTable := appToMeta(app)
+	if _, ok := byTable["billing_invoices"]; !ok {
+		t.Fatalf("appToMeta should be keyed by table: %+v", byTable)
+	}
+}
+
 func do(t *testing.T, srv *AdminServer, method, path string, body any, sessionID string) *httptest.ResponseRecorder {
 	t.Helper()
 	var bodyReader *bytes.Reader
