@@ -52,6 +52,8 @@ gomyadmin introspect --database-url "$DATABASE_URL" > schema.json
 gomyadmin generate from-schema schema.json
 ```
 
+For a hosted Postgres flow, see the [Supabase/Postgres example](docs/supabase-postgres.md).
+
 ## What You Get
 
 - A CLI for scaffolding, schema introspection, resource generation, OpenAPI output, and local checks.
@@ -137,6 +139,7 @@ See [comparison notes](docs/comparison.md) for when GoMyAdmin is a good fit.
 - [Multi-tenancy](docs/multi-tenancy.md)
 - [Drop-in adapters](docs/drop-in-adapters.md)
 - [Deployment](docs/deployment.md)
+- [Supabase/Postgres example](docs/supabase-postgres.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Comparison](docs/comparison.md)
 - [Free demo deploy](docs/free-demo-deploy.md)
