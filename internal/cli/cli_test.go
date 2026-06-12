@@ -140,6 +140,12 @@ func TestRunVersionPrintsAndReturnsZero(t *testing.T) {
 	}
 }
 
+func TestVersionMatchesReleaseTag(t *testing.T) {
+	if Version != "1.0.2" {
+		t.Fatalf("Version = %q, want 1.0.2", Version)
+	}
+}
+
 func TestRunHelpReturnsZero(t *testing.T) {
 	for _, arg := range []string{"-h", "--help", "help"} {
 		if code := Run([]string{arg}); code != 0 {
