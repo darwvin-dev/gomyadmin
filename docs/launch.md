@@ -14,7 +14,7 @@ This checklist is for preparing GoMyAdmin for public distribution and repeatable
 
 A hosted demo should show the product before asking users to install anything.
 
-Use [free-demo-deploy.md](free-demo-deploy.md) for the Render + Neon free-tier path.
+Use [cloudflare-demo-deploy.md](cloudflare-demo-deploy.md) for the card-free Cloudflare path. Use [free-demo-deploy.md](free-demo-deploy.md) for the Render + Neon path that runs the real Go backend.
 
 Recommended demo:
 

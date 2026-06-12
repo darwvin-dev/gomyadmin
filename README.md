@@ -43,7 +43,7 @@ Open `http://localhost:3000/admin` and use:
 admin@example.com / password
 ```
 
-Public demo deployment instructions are in [docs/free-demo-deploy.md](docs/free-demo-deploy.md). Once a hosted demo is live, add its URL here.
+Public demo deployment instructions are in [docs/cloudflare-demo-deploy.md](docs/cloudflare-demo-deploy.md) for a card-free Cloudflare demo and [docs/free-demo-deploy.md](docs/free-demo-deploy.md) for a Render + Neon demo that runs the Go backend. Once a hosted demo is live, add its URL here.
 
 You can also start from an existing database:
 
@@ -139,6 +139,7 @@ See [comparison notes](docs/comparison.md) for when GoMyAdmin is a good fit.
 - [Deployment](docs/deployment.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Comparison](docs/comparison.md)
+- [Cloudflare demo deploy](docs/cloudflare-demo-deploy.md)
 - [Free demo deploy](docs/free-demo-deploy.md)
 
 ## Verification

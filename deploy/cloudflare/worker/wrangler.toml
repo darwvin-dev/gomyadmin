@@ -1,0 +1,7 @@
+name = "gomyadmin-demo-api"
+main = "src/index.mjs"
+compatibility_date = "2026-06-12"
+
+[vars]
+# Set this to the deployed Cloudflare Pages origin after the frontend is live.
+ADMIN_ORIGIN = "https://gomyadmin-demo.pages.dev"
