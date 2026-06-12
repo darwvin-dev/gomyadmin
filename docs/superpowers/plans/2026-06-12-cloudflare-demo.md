@@ -70,7 +70,7 @@ Expected: PASS.
 Write instructions for:
 
 - Deploy Worker with `npx wrangler deploy`.
-- Deploy `templates/frontend-next-shadcn` with Wrangler's Next.js/OpenNext flow.
+- Deploy `templates/frontend-next-shadcn` with the OpenNext Cloudflare migration and deploy script.
 - Set `NEXT_PUBLIC_ADMIN_API_URL` to the Worker URL.
 - Use `admin@example.com / password` to test the demo.
 - Rotate or avoid database secrets because this Worker does not need Neon.

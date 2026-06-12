@@ -51,10 +51,11 @@ Cloudflare recommends the Workers/OpenNext path for full Next.js apps. Deploy th
 ```sh
 cd templates/frontend-next-shadcn
 yarn install --frozen-lockfile
-NEXT_PUBLIC_ADMIN_API_URL=https://gomyadmin-demo-api.<your-account>.workers.dev npx wrangler deploy
+npx @opennextjs/cloudflare migrate
+NEXT_PUBLIC_ADMIN_API_URL=https://gomyadmin-demo-api.<your-account>.workers.dev npm run deploy
 ```
 
-Wrangler can auto-detect Next.js and generate the OpenNext Worker configuration. If Cloudflare asks for a project name, use:
+The OpenNext migration adds the Cloudflare deploy scripts and Worker config for the existing Next.js app. If Cloudflare asks for a project name, use:
 
 ```text
 gomyadmin-demo

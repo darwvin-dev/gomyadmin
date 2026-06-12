@@ -49,7 +49,7 @@ All routes include CORS headers suitable for a Cloudflare-hosted frontend callin
 
 ## Deployment
 
-The user deploys the API Worker with Wrangler, then deploys the existing frontend template from `templates/frontend-next-shadcn` with Wrangler's Next.js/OpenNext flow. The frontend build receives `NEXT_PUBLIC_ADMIN_API_URL` pointing at the API Worker.
+The user deploys the API Worker with Wrangler, then runs the OpenNext Cloudflare migration inside `templates/frontend-next-shadcn` and deploys that frontend Worker with `NEXT_PUBLIC_ADMIN_API_URL` pointing at the API Worker.
 
 ## Testing
 
