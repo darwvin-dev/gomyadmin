@@ -208,6 +208,18 @@ func TestRunInitCreatesProject(t *testing.T) {
 	}
 }
 
+func TestRunDemoCreatesNamedProject(t *testing.T) {
+	dir := t.TempDir()
+	projectName := filepath.Join(dir, "launch-demo")
+	code := Run([]string{"demo", projectName})
+	if code != 0 {
+		t.Fatalf("demo: expected 0, got %d", code)
+	}
+	if _, err := os.Stat(filepath.Join(projectName, "docker-compose.yml")); err != nil {
+		t.Fatalf("docker-compose.yml not created in requested demo directory: %v", err)
+	}
+}
+
 func TestRunIntrospectNoURLReturnsTwo(t *testing.T) {
 	orig := os.Getenv("DATABASE_URL")
 	_ = os.Unsetenv("DATABASE_URL")
@@ -294,4 +306,3 @@ func TestFieldTypeMethodName(t *testing.T) {
 		}
 	}
 }
-

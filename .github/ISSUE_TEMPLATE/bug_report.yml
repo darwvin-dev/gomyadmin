@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible GoMyAdmin bug
+title: "bug: "
+labels:
+  - bug
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the behavior you saw.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include commands, schema snippets, logs, or a small repo when possible.
+      placeholder: |
+        1. go install github.com/darwvin-dev/gomyadmin/cmd/gomyadmin@latest
+        2. gomyadmin demo my-admin
+        3. docker compose up --build
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GoMyAdmin version
+      placeholder: "gomyadmin version"
+    validations:
+      required: true
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      placeholder: "go version"
+    validations:
+      required: true
+  - type: input
+    id: postgres-version
+    attributes:
+      label: PostgreSQL version
+      placeholder: "PostgreSQL 17"
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context

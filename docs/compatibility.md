@@ -26,7 +26,7 @@ After v1.0.0:
 
 ## Supported Runtime Targets
 
-- Go: 1.23+
+- Go: 1.25+
 - HTTP: any stack that can mount `http.Handler`
 - Built-in database adapter: PostgreSQL via pgx
 - Optional adapters: database/sql, MySQL-style SQL, SQLite-style SQL, GORM, MongoDB

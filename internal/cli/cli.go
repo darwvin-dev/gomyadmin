@@ -162,7 +162,7 @@ func Run(args []string) int {
 	case "doctor":
 		return runDoctor(args[1:])
 	case "demo":
-		return runDemo()
+		return runDemo(args[1:])
 	case "openapi":
 		return runOpenAPI(args[1:])
 	case "version":
@@ -308,8 +308,11 @@ func runDoctor(args []string) int {
 	return 0
 }
 
-func runDemo() int {
+func runDemo(args []string) int {
 	name := "gomyadmin-demo"
+	if len(args) > 0 {
+		name = args[0]
+	}
 	if _, err := os.Stat(name); os.IsNotExist(err) {
 		if err := generator.InitProject(generator.InitOptions{Name: name, Module: "github.com/darwvin-dev/gomyadmin-demo"}); err != nil {
 			fmt.Fprintln(os.Stderr, "demo init failed:", err)
@@ -318,7 +321,7 @@ func runDemo() int {
 	}
 	fmt.Println("Demo project is ready in", name)
 	fmt.Println("Run:")
-	fmt.Println("  cd gomyadmin-demo")
+	fmt.Printf("  cd %s\n", name)
 	fmt.Println("  docker compose up --build")
 	return 0
 }
@@ -471,7 +474,7 @@ Commands:
   migrate      Run generated app migrations
   seed         Seed generated app demo data
   doctor       Check local prerequisites and configuration
-  demo         Create a runnable demo app
+  demo [name]  Create a runnable demo app
   openapi      Generate an OpenAPI spec
   version      Print version
 
