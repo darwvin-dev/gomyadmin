@@ -144,6 +144,35 @@ func TestInitProjectCreatesStructure(t *testing.T) {
 	}
 }
 
+func TestInitProjectBackendUsesPortEnv(t *testing.T) {
+	dir := t.TempDir()
+	name := filepath.Join(dir, "myapp")
+
+	err := InitProject(InitOptions{
+		Name:     name,
+		Module:   "github.com/test/myapp",
+		Backend:  "go",
+		Database: "postgres",
+		Frontend: "next",
+		UI:       "shadcn",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(name, "backend", "cmd", "server", "main.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	if !strings.Contains(content, `port := os.Getenv("PORT")`) {
+		t.Fatalf("generated backend does not read PORT:\n%s", content)
+	}
+	if !strings.Contains(content, `Addr:              ":" + port,`) {
+		t.Fatalf("generated backend does not listen on PORT:\n%s", content)
+	}
+}
+
 func TestInitProjectDefaultsModuleToDarwvinDev(t *testing.T) {
 	dir := t.TempDir()
 	name := filepath.Join(dir, "Acme Admin")

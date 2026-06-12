@@ -428,8 +428,12 @@ import (
 
 func main() {
 	handler := adminapp.Handler()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 	server := &http.Server{
-		Addr:              ":8080",
+		Addr:              ":" + port,
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       20 * time.Second,
@@ -439,7 +443,7 @@ func main() {
 	}
 
 	go func() {
-		log.Println("admin backend listening on :8080")
+		log.Println("admin backend listening on", server.Addr)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatal(err)
 		}

@@ -43,6 +43,8 @@ Open `http://localhost:3000/admin` and use:
 admin@example.com / password
 ```
 
+Public demo deployment instructions are in [docs/free-demo-deploy.md](docs/free-demo-deploy.md). Once a hosted demo is live, add its URL here.
+
 You can also start from an existing database:
 
 ```sh
@@ -137,6 +139,7 @@ See [comparison notes](docs/comparison.md) for when GoMyAdmin is a good fit.
 - [Deployment](docs/deployment.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Comparison](docs/comparison.md)
+- [Free demo deploy](docs/free-demo-deploy.md)
 
 ## Verification
 

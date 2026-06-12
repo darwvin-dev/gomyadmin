@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: gomyadmin-demo-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/backend.Dockerfile
+    dockerContext: .
+    healthCheckPath: /admin/api/auth/providers
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: GOMYADMIN_SESSION_SECRET
+        generateValue: true
+      - key: GOMYADMIN_PUBLIC_URL
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+
+  - type: web
+    name: gomyadmin-demo-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./deploy/render/frontend.Dockerfile
+    dockerContext: .
+    envVars:
+      - key: NEXT_PUBLIC_ADMIN_API_URL
+        sync: false

@@ -141,8 +141,8 @@ func TestRunVersionPrintsAndReturnsZero(t *testing.T) {
 }
 
 func TestVersionMatchesReleaseTag(t *testing.T) {
-	if Version != "1.0.2" {
-		t.Fatalf("Version = %q, want 1.0.2", Version)
+	if Version != "1.0.3" {
+		t.Fatalf("Version = %q, want 1.0.3", Version)
 	}
 }
 
