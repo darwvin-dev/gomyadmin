@@ -139,6 +139,7 @@ See [comparison notes](docs/comparison.md) for when GoMyAdmin is a good fit.
 - [Multi-tenancy](docs/multi-tenancy.md)
 - [Drop-in adapters](docs/drop-in-adapters.md)
 - [Deployment](docs/deployment.md)
+- [Reverse proxy deployment](docs/reverse-proxy.md)
 - [Supabase/Postgres example](docs/supabase-postgres.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Comparison](docs/comparison.md)
