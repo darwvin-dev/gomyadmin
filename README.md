@@ -10,8 +10,11 @@ GoMyAdmin gives you a small CLI, a Go resource API, PostgreSQL introspection, an
 [![CI](https://github.com/darwvin-dev/gomyadmin/actions/workflows/ci.yml/badge.svg)](https://github.com/darwvin-dev/gomyadmin/actions/workflows/ci.yml)
 
 <p align="center">
-  <img src="docs/demo-cli.svg" alt="GoMyAdmin CLI demo" width="720" /><br/>
-  <img src="docs/demo-ui.svg" alt="GoMyAdmin admin UI screenshot" width="720" />
+  <img src="docs/screenshots/dashboard.png" alt="GoMyAdmin admin dashboard" width="820" />
+</p>
+
+<p align="center">
+  <em>The generated CRM admin — <a href="https://gomyadmin-next-shadcn.darwvin-dev.workers.dev/admin/login">try the live demo</a> (admin@example.com / password)</em>
 </p>
 
 ## Why
@@ -36,6 +39,8 @@ admin@example.com / password
 ```
 
 The demo frontend runs on Cloudflare Workers (OpenNext) and talks to a seeded, read-only demo API worker. The demo data is served fresh per request, so visitors can explore freely without affecting a real database.
+
+Screenshots from the live demo: [dashboard](docs/screenshots/dashboard.png) · [resource list](docs/screenshots/customers-list.png) · [edit form](docs/screenshots/customer-edit-form.png) · [audit log](docs/screenshots/audit-log.png) — see [docs/screenshots/](docs/screenshots/).
 
 ## Quick Start
 
