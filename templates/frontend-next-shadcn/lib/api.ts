@@ -8,6 +8,13 @@ export type ApiResponse<T> = {
   }
 }
 
+export type RelationMeta = {
+  resource: string
+  foreign_key?: string
+  display_field?: string
+  kind: string
+}
+
 export type FieldMeta = {
   name: string
   label: string
@@ -18,6 +25,7 @@ export type FieldMeta = {
   readonly: boolean
   hidden: boolean
   enum_values?: string[]
+  relation?: RelationMeta
 }
 
 export type ActionMeta = {

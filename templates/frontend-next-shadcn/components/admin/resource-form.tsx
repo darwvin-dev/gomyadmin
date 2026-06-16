@@ -7,6 +7,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { api, type FieldMeta, type RecordRow, type ResourceMeta } from "@/lib/api"
+import { RelationSelect } from "@/components/admin/relation-field"
 
 export function ResourceForm({ resource, id }: { resource: string; id?: string }) {
   const router = useRouter()
@@ -71,6 +72,9 @@ export function ResourceForm({ resource, id }: { resource: string; id?: string }
 }
 
 function FieldInput({ field, value, onChange }: { field: FieldMeta; value: unknown; onChange: (value: unknown) => void }) {
+  if (field.type === "relation" && field.relation) {
+    return <RelationSelect relation={field.relation} value={value} onChange={onChange} />
+  }
   if (field.enum_values?.length) {
     return (
       <select className="h-9 rounded-md border border-border bg-panel px-3 text-sm" defaultValue={String(value ?? "")} onChange={(event) => onChange(event.target.value)}>

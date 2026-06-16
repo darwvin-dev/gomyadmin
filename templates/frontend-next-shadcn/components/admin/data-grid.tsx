@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import type { FieldMeta, RecordRow, ResourceMeta } from "@/lib/api"
 import { formatDate, formatMoney } from "@/lib/utils"
+import { RelationLabel } from "@/components/admin/relation-field"
 
 export function DataGrid({
   resource,
@@ -249,6 +250,7 @@ export function DataGrid({
 }
 
 function Cell({ field, value }: { field: FieldMeta; value: unknown }) {
+  if (field.type === "relation" && field.relation) return <RelationLabel relation={field.relation} value={value} />
   if (field.type === "status" || field.type === "enum") return <Badge value={value} />
   if (field.type === "datetime" || field.type === "date") return <span>{formatDate(value)}</span>
   if (field.type === "money") return <span className="font-medium">{formatMoney(value)}</span>
