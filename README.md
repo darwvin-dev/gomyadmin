@@ -184,7 +184,7 @@ yarn run build
 - [x] Next.js admin template
 - [x] Drop-in HTTP handler for existing Go backends
 - [x] Hosted public demo
-- [ ] Relation field rendering in the frontend
+- [x] Relation field rendering in the frontend
 - [ ] Playwright e2e coverage for the CRM demo
 - [ ] Split heavier optional adapters into separate modules or documented opt-in packages
 

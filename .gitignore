@@ -10,3 +10,6 @@ tmp
 next-env.d.ts
 gomyadmin-demo
 .gocache/
+
+# Playwright MCP session artifacts
+.playwright-mcp/

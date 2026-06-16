@@ -45,7 +45,7 @@ const resources = [
     description: "Billing records, payment state, and refund actions",
     fields: [
       field("id", "ID", "uuid", { sortable: true, readonly: true }),
-      field("customer_id", "Customer", "relation", { filterable: true }),
+      field("customer_id", "Customer", "relation", { filterable: true, relation: { resource: "customers", foreign_key: "customer_id", display_field: "name", kind: "belongs_to" } }),
       field("number", "Number", "string", { searchable: true, sortable: true }),
       field("amount", "Amount", "money", { sortable: true }),
       field("status", "Status", "status", { filterable: true, enum_values: ["draft", "open", "paid", "failed", "refunded"] }),
@@ -65,7 +65,7 @@ const resources = [
     description: "Customer support queue and escalation workflow",
     fields: [
       field("id", "ID", "uuid", { sortable: true, readonly: true }),
-      field("customer_id", "Customer", "relation", { filterable: true }),
+      field("customer_id", "Customer", "relation", { filterable: true, relation: { resource: "customers", foreign_key: "customer_id", display_field: "name", kind: "belongs_to" } }),
       field("subject", "Subject", "string", { searchable: true, sortable: true }),
       field("priority", "Priority", "enum", { filterable: true, enum_values: ["low", "normal", "high", "urgent"] }),
       field("status", "Status", "status", { filterable: true, enum_values: ["open", "waiting", "solved"] }),
@@ -335,7 +335,8 @@ function field(name, label, type, options = {}) {
     filterable: Boolean(options.filterable),
     readonly: Boolean(options.readonly),
     hidden: Boolean(options.hidden),
-    ...(options.enum_values ? { enum_values: options.enum_values } : {})
+    ...(options.enum_values ? { enum_values: options.enum_values } : {}),
+    ...(options.relation ? { relation: options.relation } : {})
   }
 }
 
