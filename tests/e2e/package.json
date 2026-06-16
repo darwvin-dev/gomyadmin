@@ -1,0 +1,14 @@
+{
+  "name": "gomyadmin-e2e",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:local": "npm install && playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^6.0.3"
+  }
+}

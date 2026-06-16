@@ -3,10 +3,11 @@
 Run these after starting a generated app:
 
 ```sh
-cd tests/e2e
-npx playwright test
+npm --prefix tests/e2e run test:local
 ```
 
 Set `GOMYADMIN_E2E_BASE_URL` when the frontend is not running on `http://localhost:3000`.
 
-End-to-end browser tests should cover login, resource listing, filtering, sorting, custom actions, audit visibility, and file upload once Playwright is added to the frontend template.
+The current suite mocks the admin API and covers login, resource listing, search, filtering, create/update flow, and audit log visibility for the generated CRM demo. Playwright writes screenshots, videos, and traces to `tests/e2e/test-results` when a test fails.
+
+CI can run the same command after starting the generated Next.js app; wiring that app startup into repository CI is a follow-up because the template is not generated as part of the default Go checks yet.
