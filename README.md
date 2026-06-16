@@ -26,6 +26,17 @@ PostgreSQL schema -> resource definitions in Go -> generated admin API + Next.js
 
 The output is explicit Go, SQL, and TypeScript. There is no runtime model magic and no requirement to replace your router, ORM, auth, or deployment flow.
 
+## Live Demo
+
+Try the generated CRM admin UI without installing anything:
+
+```text
+https://gomyadmin-next-shadcn.darwvin-dev.workers.dev/admin/login
+admin@example.com / password
+```
+
+The demo frontend runs on Cloudflare Workers (OpenNext) and talks to a seeded, read-only demo API worker. The demo data is served fresh per request, so visitors can explore freely without affecting a real database.
+
 ## Quick Start
 
 ```sh
@@ -43,7 +54,7 @@ Open `http://localhost:3000/admin` and use:
 admin@example.com / password
 ```
 
-Public demo deployment instructions are in [docs/cloudflare-demo-deploy.md](docs/cloudflare-demo-deploy.md) for a card-free Cloudflare demo and [docs/free-demo-deploy.md](docs/free-demo-deploy.md) for a Render + Neon demo that runs the Go backend. Once a hosted demo is live, add its URL here.
+Public demo deployment instructions are in [docs/cloudflare-demo-deploy.md](docs/cloudflare-demo-deploy.md) for a card-free Cloudflare demo and [docs/free-demo-deploy.md](docs/free-demo-deploy.md) for a Render + Neon demo that runs the Go backend.
 
 You can also start from an existing database:
 
@@ -167,7 +178,7 @@ yarn run build
 - [x] Admin API with CRUD, filters, search, sort, pagination, actions, audit, RBAC, sessions, and files
 - [x] Next.js admin template
 - [x] Drop-in HTTP handler for existing Go backends
-- [ ] Hosted public demo
+- [x] Hosted public demo
 - [ ] Relation field rendering in the frontend
 - [ ] Playwright e2e coverage for the CRM demo
 - [ ] Split heavier optional adapters into separate modules or documented opt-in packages

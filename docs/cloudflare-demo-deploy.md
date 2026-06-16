@@ -1,5 +1,13 @@
 # Cloudflare Demo Deploy
 
+A live demo built with this guide is running at:
+
+```text
+Frontend: https://gomyadmin-next-shadcn.darwvin-dev.workers.dev/admin/login
+API:      https://gomyadmin-demo-api.darwvin-dev.workers.dev
+Login:    admin@example.com / password
+```
+
 This guide creates a public GoMyAdmin demo without adding a payment card.
 
 The Cloudflare setup is intentionally demo-only:
@@ -15,8 +23,8 @@ Use [free-demo-deploy.md](free-demo-deploy.md) if you want the Render + Neon pat
 
 ```text
 Browser
-  -> gomyadmin-demo.<account>.workers.dev      Next.js admin UI
-  -> gomyadmin-demo-api.<account>.workers.dev  demo API Worker
+  -> gomyadmin-next-shadcn.<account>.workers.dev  Next.js admin UI (OpenNext)
+  -> gomyadmin-demo-api.<account>.workers.dev     demo API Worker
 ```
 
 The Worker mirrors the API contract expected by the frontend and returns seeded CRM data. It is not meant to replace the Go backend.
@@ -46,26 +54,31 @@ curl https://gomyadmin-demo-api.<your-account>.workers.dev/admin/api/resources
 
 ## 2. Deploy The Frontend To Cloudflare Workers
 
-Cloudflare recommends the Workers/OpenNext path for full Next.js apps. Deploy the existing frontend template from its directory:
+Cloudflare recommends the Workers/OpenNext path for full Next.js apps. The frontend template already ships the OpenNext config (`open-next.config.ts`, `wrangler.jsonc`, and the `deploy`/`preview` scripts), so no migration step is needed. Deploy from the template directory:
 
 ```sh
 cd templates/frontend-next-shadcn
 yarn install --frozen-lockfile
-npx @opennextjs/cloudflare migrate
 NEXT_PUBLIC_ADMIN_API_URL=https://gomyadmin-demo-api.<your-account>.workers.dev npm run deploy
 ```
 
-The OpenNext migration adds the Cloudflare deploy scripts and Worker config for the existing Next.js app. If Cloudflare asks for a project name, use:
+The worker is named `gomyadmin-next-shadcn` in `wrangler.jsonc`. Open the deployed frontend:
 
 ```text
-gomyadmin-demo
+https://gomyadmin-next-shadcn.<your-account>.workers.dev/admin
 ```
 
-Open the deployed frontend:
+### If the worker upload times out or fails with `fetch failed`
 
-```text
-https://gomyadmin-demo.<your-account>.workers.dev/admin
+The final step uploads the worker bundle (~1 MB) as a single request. On some links (mobile tethering, restrictive networks, certain VPNs) that large upload is reset while small requests and asset uploads still succeed. Route Wrangler through a stable local proxy if you have one (for example an HTTP/SOCKS proxy on `127.0.0.1:10808`):
+
+```sh
+export HTTPS_PROXY=http://127.0.0.1:10808
+export HTTP_PROXY=http://127.0.0.1:10808
+NEXT_PUBLIC_ADMIN_API_URL=https://gomyadmin-demo-api.<your-account>.workers.dev npm run deploy
 ```
+
+Wrangler honors these variables ("We'll use your proxy for fetch requests"). Otherwise retry from a more stable connection.
 
 Login:
 
@@ -79,8 +92,10 @@ After the frontend is live, edit `deploy/cloudflare/worker/wrangler.toml`:
 
 ```toml
 [vars]
-ADMIN_ORIGIN = "https://gomyadmin-demo.<your-account>.workers.dev"
+ADMIN_ORIGIN = "https://gomyadmin-next-shadcn.<your-account>.workers.dev"
 ```
+
+The demo API reflects the requesting origin in its CORS headers, so the demo works even before this step; locking `ADMIN_ORIGIN` is optional hardening.
 
 Redeploy the Worker:
 
@@ -107,7 +122,7 @@ The Worker uses seeded demo data, so writes are response-level demos and do not 
 After the demo is live, update the README:
 
 ```md
-Live demo: https://gomyadmin-demo.<your-account>.workers.dev/admin
+Live demo: https://gomyadmin-next-shadcn.<your-account>.workers.dev/admin
 
 Login: `admin@example.com` / `password`
 ```
