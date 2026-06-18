@@ -13,3 +13,7 @@ gomyadmin-demo
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# Go workspace (local dev convenience; in-repo modules resolve via replace)
+go.work
+go.work.sum
