@@ -64,6 +64,27 @@ jobs:
           go test $PKGS -coverprofile=coverage.out -timeout 120s
           go tool cover -func=coverage.out | awk '/total:/ {pct=$3+0; threshold=ENVIRON["COVERAGE_THRESHOLD"]+0; if (pct < threshold) { print "Coverage " $3 " is below " threshold "%"; exit 1 } else { print "Coverage " $3 " OK" }}'
 
+  adapters:
+    name: Adapter modules
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build and test opt-in adapter modules
+        run: |
+          for module in sqlstore redisstore gormstore mongostore; do
+            echo "== pkg/adapters/$module =="
+            (cd "pkg/adapters/$module" && go build ./... && go test ./... -timeout 120s)
+          done
+
   frontend:
     name: Frontend build
     runs-on: ubuntu-latest

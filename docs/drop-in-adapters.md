@@ -2,6 +2,37 @@
 
 GoMyAdmin can be mounted on an existing Go backend without changing your router, ORM, database, or cache.
 
+## Opt-In Adapter Modules
+
+The core module — CLI, resource builder, PostgreSQL introspection, and admin
+server — stays lightweight and does not pull in Redis, MongoDB, GORM, or extra
+SQL drivers. Each heavier integration lives in its own Go module under
+`pkg/adapters/` and is installed separately:
+
+```sh
+go get github.com/darwvin-dev/gomyadmin/pkg/adapters/sqlstore@latest    # database/sql (MySQL, SQLite, ...)
+go get github.com/darwvin-dev/gomyadmin/pkg/adapters/redisstore@latest  # Redis sessions
+go get github.com/darwvin-dev/gomyadmin/pkg/adapters/gormstore@latest   # GORM-backed store
+go get github.com/darwvin-dev/gomyadmin/pkg/adapters/mongostore@latest  # MongoDB documents
+```
+
+Only the adapters you `go get` add their dependencies to your build. The import
+paths and APIs are unchanged from when these packages lived in the main module.
+
+### Migrating from a single-module install
+
+If you previously imported an adapter while depending only on
+`github.com/darwvin-dev/gomyadmin`, add the matching adapter module:
+
+```sh
+# import paths stay the same — you only add the module to your build
+go get github.com/darwvin-dev/gomyadmin/pkg/adapters/redisstore@latest
+go mod tidy
+```
+
+No code changes are required: `redisstore.New(...)`, `gormstore.MySQL(...)`,
+`mongostore.New(...)`, and `sqlstore.SQLite(...)` keep the same signatures.
+
 ## Minimal Mount
 
 ```go

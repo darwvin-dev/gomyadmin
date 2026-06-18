@@ -138,7 +138,7 @@ mux.Handle("/admin/", srv.Handler())
 
 GoMyAdmin is PostgreSQL-first and optimized for Go applications that want generated, committable code.
 
-It is not trying to be a hosted low-code platform, a BI tool, or a universal replacement for every admin framework. Optional adapters exist for integration points such as sessions, storage, cache, ORM-backed access, and document resources, but the main path is Go + PostgreSQL.
+It is not trying to be a hosted low-code platform, a BI tool, or a universal replacement for every admin framework. The core module stays lightweight: heavier integrations (Redis sessions, GORM, MongoDB, extra SQL drivers) live in separate opt-in adapter modules under `pkg/adapters/`, so they only join your build when you `go get` them. The main path is Go + PostgreSQL. See [drop-in adapters](docs/drop-in-adapters.md).
 
 See [comparison notes](docs/comparison.md) for when GoMyAdmin is a good fit.
 
@@ -168,6 +168,11 @@ See [comparison notes](docs/comparison.md) for when GoMyAdmin is a good fit.
 go test ./...
 go vet ./...
 
+# Opt-in adapter modules are separate Go modules:
+for m in sqlstore redisstore gormstore mongostore; do
+  (cd "pkg/adapters/$m" && go test ./...)
+done
+
 cd templates/frontend-next-shadcn
 yarn install --frozen-lockfile
 yarn run typecheck
@@ -186,7 +191,7 @@ yarn run build
 - [x] Hosted public demo
 - [x] Relation field rendering in the frontend
 - [ ] Playwright e2e coverage for the CRM demo
-- [ ] Split heavier optional adapters into separate modules or documented opt-in packages
+- [x] Split heavier optional adapters into separate modules or documented opt-in packages
 
 ## Contributing
 
